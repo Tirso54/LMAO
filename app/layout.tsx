@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LMAO — League of Møøbas | MOBA en el navegador",
+  title: "LMAO — League of Mobass | MOBA en el navegador",
   description:
     "LMAO es un MOBA jugable directamente en el navegador, gratis y con multijugador online. Controla a tu campeón con controles táctiles estilo Brawl Stars y derriba el Nexo enemigo.",
 };

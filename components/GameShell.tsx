@@ -206,7 +206,7 @@ function Menu({
     <div className="overlay" style={{ position: "static", minHeight: "100vh" }}>
       <div className="modal">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2>LMAO — League of Møøbas</h2>
+          <h2>LMAO — League of Mobass</h2>
           <button className="btn ghost" style={{ padding: "6px 12px" }} onClick={onBack}>
             Volver
           </button>
