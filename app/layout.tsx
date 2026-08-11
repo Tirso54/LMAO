@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "LMAO — League of Møøbas | The Amazingly Off-brand MOBA",
   description:
-    "Why pay full price for a MOBA? LMAO is a Temu-tier League of Legends knockoff you can actually play online with friends. Host a room, invite the squad, and destroy the enemy Nexus. 90% OFF (fake discount).",
+    "Why pay full price for a MOBA? LMAO is a bargain-bin League of Legends knockoff you can actually play online with friends. Host a room, invite the squad, and destroy the enemy Nexus. 90% OFF (fake discount).",
 };
 
 export const viewport: Viewport = {

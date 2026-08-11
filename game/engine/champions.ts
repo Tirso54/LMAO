@@ -61,7 +61,7 @@ export interface ChampDef {
   stats: ChampStats;
   passive: PassiveDef;
   abilities: AbilityDef[]; // Q W E R
-  // Temu storefront flavor.
+  // Storefront flavor.
   price: string;
   listPrice: string;
   rating: number;

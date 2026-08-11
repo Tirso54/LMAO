@@ -1,7 +1,7 @@
 # 🛒 LMAO — League of Møøbas: The Amazingly Off-brand MOBA
 
 > Why pay full price for a MOBA when you can pay **$0** for this legally-distinct one?
-> **LMAO** is a Temu-tier *League of Legends* knockoff you can actually play online with your friends.
+> **LMAO** is a bargain-bin *League of Legends* knockoff you can actually play online with your friends.
 
 A complete, browser-based ARAM-style MOBA built with **Next.js + React + TypeScript**, a pure-TypeScript
 authoritative game engine, an HTML5 Canvas renderer, and **host-authoritative WebRTC (PeerJS) netcode** —
@@ -13,7 +13,7 @@ so it deploys anywhere Next.js does, with **no dedicated game server required.**
 
 ## ✨ What's in the box
 
-- **🏪 A parody Temu storefront** front-end (fake discounts, flash-sale timers, ⭐ reviews, dropshipping jokes).
+- **🏪 A parody bargain-bin storefront** front-end (fake discounts, flash-sale timers, ⭐ reviews, dropshipping jokes).
 - **🌐 Real online multiplayer.** The host creates a room and gets a 5-letter code; friends type it in to join —
   exactly the "join the host's room" model of modern web multiplayer games. Empty seats fill with **AI bots**,
   so it's fully playable solo too.

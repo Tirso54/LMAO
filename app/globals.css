@@ -1,8 +1,8 @@
 :root {
-  --temu-orange: #ff6a00;
-  --temu-orange-2: #ff8c1a;
-  --temu-red: #ff3b30;
-  --temu-yellow: #ffd23f;
+  --brand-orange: #ff6a00;
+  --brand-orange-2: #ff8c1a;
+  --brand-red: #ff3b30;
+  --brand-yellow: #ffd23f;
   --bg: #0d1220;
   --bg-2: #131b2e;
   --panel: #1a2338;
@@ -44,7 +44,7 @@ input {
   font-family: inherit;
 }
 
-/* ---- Temu storefront ---- */
+/* ---- Storefront ---- */
 .store {
   min-height: 100vh;
   background: radial-gradient(1200px 600px at 20% -10%, #1a2036 0%, var(--bg) 55%);
@@ -58,7 +58,7 @@ input {
   align-items: center;
   gap: 14px;
   padding: 10px 20px;
-  background: linear-gradient(90deg, var(--temu-orange), var(--temu-orange-2));
+  background: linear-gradient(90deg, var(--brand-orange), var(--brand-orange-2));
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
@@ -76,7 +76,7 @@ input {
   font-size: 11px;
   font-weight: 700;
   background: #fff;
-  color: var(--temu-orange);
+  color: var(--brand-orange);
   padding: 2px 7px;
   border-radius: 20px;
   letter-spacing: 0;
@@ -141,7 +141,7 @@ input {
 .flash {
   font-variant-numeric: tabular-nums;
   background: #111;
-  color: var(--temu-yellow);
+  color: var(--brand-yellow);
   padding: 4px 12px;
   border-radius: 8px;
   font-weight: 800;
@@ -176,7 +176,7 @@ input {
   line-height: 1.02;
 }
 .hero-card h1 .zap {
-  color: var(--temu-yellow);
+  color: var(--brand-yellow);
 }
 .hero-card p {
   color: var(--ink-dim);
@@ -209,7 +209,7 @@ input {
   transform: translateY(1px);
 }
 .btn.primary {
-  background: linear-gradient(90deg, var(--temu-orange), var(--temu-red));
+  background: linear-gradient(90deg, var(--brand-orange), var(--brand-red));
   box-shadow: 0 8px 20px rgba(255, 80, 0, 0.3);
 }
 .btn.green {
@@ -236,7 +236,7 @@ input {
   gap: 10px;
 }
 .stars {
-  color: var(--temu-yellow);
+  color: var(--brand-yellow);
   letter-spacing: 2px;
 }
 .trust {
@@ -256,7 +256,7 @@ input {
 }
 .section-title .tag {
   font-size: 12px;
-  background: var(--temu-red);
+  background: var(--brand-red);
   color: #fff;
   padding: 3px 9px;
   border-radius: 8px;
@@ -295,7 +295,7 @@ input {
   font-size: 12px;
   font-weight: 800;
   color: #fff;
-  background: var(--temu-red);
+  background: var(--brand-red);
   position: absolute;
   top: 10px;
   left: 10px;
@@ -332,7 +332,7 @@ input {
   gap: 8px;
 }
 .price .now {
-  color: var(--temu-orange);
+  color: var(--brand-orange);
   font-weight: 900;
   font-size: 20px;
 }
@@ -342,7 +342,7 @@ input {
   font-size: 13px;
 }
 .rating {
-  color: var(--temu-yellow);
+  color: var(--brand-yellow);
   font-size: 12px;
   margin-top: 6px;
 }
@@ -448,7 +448,7 @@ input {
   width: 46px;
   height: 46px;
   border: 5px solid rgba(255, 255, 255, 0.15);
-  border-top-color: var(--temu-orange);
+  border-top-color: var(--brand-orange);
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
 }

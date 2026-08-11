@@ -58,7 +58,7 @@ export default function Lobby({
 
   return (
     <div className="center" style={{ alignItems: "stretch", padding: 0, minHeight: "100vh", justifyContent: "flex-start" }}>
-      <div style={{ padding: "14px 20px", background: "linear-gradient(90deg, var(--temu-orange), var(--temu-orange-2))", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+      <div style={{ padding: "14px 20px", background: "linear-gradient(90deg, var(--brand-orange), var(--brand-orange-2))", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
         <div className="logo" style={{ fontSize: 22 }}>
           🛒 LMAO Lobby
         </div>
@@ -82,7 +82,7 @@ export default function Lobby({
       </div>
 
       {notice && (
-        <div style={{ background: "#111", color: "var(--temu-yellow)", padding: "8px 20px", fontSize: 13 }}>📣 {notice}</div>
+        <div style={{ background: "#111", color: "var(--brand-yellow)", padding: "8px 20px", fontSize: 13 }}>📣 {notice}</div>
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 16, padding: 16, alignItems: "start" }} className="lobby-grid">
@@ -125,7 +125,7 @@ export default function Lobby({
                 {chat.length === 0 && <div style={{ color: "var(--ink-dim)" }}>Say hi (or GLHF, or something regrettable).</div>}
                 {chat.map((c, i) => (
                   <div key={i}>
-                    <b style={{ color: "var(--temu-orange)" }}>{c.from}:</b> {c.text}
+                    <b style={{ color: "var(--brand-orange)" }}>{c.from}:</b> {c.text}
                   </div>
                 ))}
               </div>
@@ -163,7 +163,7 @@ export default function Lobby({
                     setDetail(c.id);
                   }}
                   style={{
-                    background: mine ? "linear-gradient(135deg, var(--temu-orange), var(--temu-red))" : "var(--bg-2)",
+                    background: mine ? "linear-gradient(135deg, var(--brand-orange), var(--brand-red))" : "var(--bg-2)",
                     border: mine ? "2px solid #fff" : "1px solid var(--border)",
                     borderRadius: 10,
                     padding: "10px 4px",

@@ -2,7 +2,7 @@
   "name": "lmao-league-of-moobas",
   "version": "1.0.0",
   "private": true,
-  "description": "LMAO — League of Møøbas: the Amazingly Off-brand MOBA. A Temu-tier League of Legends knockoff you can actually play online.",
+  "description": "LMAO — League of Møøbas: the Amazingly Off-brand MOBA. A bargain-bin League of Legends knockoff you can actually play online.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
