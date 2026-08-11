@@ -231,7 +231,11 @@ export class HostSession implements GameSession {
       if (cfg.botFill) {
         const target = Math.max(targetFor(team), teamHumans.length);
         for (let i = teamHumans.length; i < target; i++) {
-          const cid = CHAMPION_IDS.find((c) => !takenChamps.has(c)) || CHAMPION_IDS[botN % CHAMPION_IDS.length];
+          // Randomly pick from champions not yet taken; fall back to any.
+          const pool = CHAMPION_IDS.filter((c) => !takenChamps.has(c));
+          const cid = pool.length
+            ? pool[Math.floor(Math.random() * pool.length)]
+            : CHAMPION_IDS[Math.floor(Math.random() * CHAMPION_IDS.length)];
           takenChamps.add(cid);
           full.push({ playerId: `bot:${botN}`, name: BOT_NAMES[botN % BOT_NAMES.length], team, championId: cid, isBot: true, ready: true, connected: true });
           botN++;

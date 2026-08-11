@@ -215,7 +215,7 @@ export default function Lobby({
               style={{ flex: 1 }}
               onClick={() => session.setReady(!mySlot?.ready)}
             >
-              {mySlot?.ready ? "Ready!" : "Ready Up"}
+              {mySlot?.ready ? "¡Listo!" : "Marcar Listo"}
             </button>
             {isHost && (
               <button
@@ -223,7 +223,7 @@ export default function Lobby({
                 style={{ flex: 1 }}
                 onClick={() => session.start?.()}
               >
-                Start Match
+                Empezar partida
               </button>
             )}
           </div>
