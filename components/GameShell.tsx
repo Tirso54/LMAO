@@ -139,10 +139,11 @@ export default function GameShell() {
   if (screen === "connecting") {
     return (
       <div className="center">
+        <div className="load-mark wordmark">LMAO</div>
         <div className="spinner" />
-        <div style={{ fontWeight: 700, fontSize: 18 }}>{connectingMsg}</div>
+        <div style={{ fontWeight: 700, fontSize: 18, color: "var(--ink)" }}>{connectingMsg}</div>
         <div style={{ color: "var(--ink-dim)", fontSize: 13 }}>
-          (peer-to-peer handshake — this can take a few seconds)
+          (emparejamiento peer-to-peer — puede tardar unos segundos)
         </div>
       </div>
     );
@@ -205,97 +206,118 @@ function Menu({
   });
 
   return (
-    <div className="overlay" style={{ position: "static", minHeight: "100vh" }}>
-      <div className="modal">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2>LMAO — League of Mobass</h2>
-          <button className="btn ghost" style={{ padding: "6px 12px" }} onClick={onBack}>
-            Volver
-          </button>
-        </div>
-        <div className="sub">Introduce un nombre y elige cómo quieres jugar.</div>
-
-        <div className="field">
-          <label>Tu nombre</label>
-          <input
-            value={nm}
-            maxLength={16}
-            placeholder="e.g. FeederSupreme"
-            onChange={(e) => setNm(e.target.value)}
-            onBlur={() => valid && onName(nm.trim())}
-          />
-        </div>
-
-        <div className="row" style={{ marginBottom: 16 }}>
-          <button className={"btn " + (tab === "solo" ? "primary" : "ghost")} onClick={() => setTab("solo")}>
-            Vs Bots
-          </button>
-          <button className={"btn " + (tab === "host" ? "green" : "ghost")} onClick={() => setTab("host")}>
-            Crear sala
-          </button>
-          <button className={"btn " + (tab === "join" ? "blue" : "ghost")} onClick={() => setTab("join")}>
-            Unirse
+    <div className="menu-screen">
+      <div className="menu-card">
+        <div className="head">
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span className="mark wordmark">LMAO</span>
+            <span className="tag-chip">SALA</span>
+          </div>
+          <button className="btn ghost" style={{ padding: "8px 14px" }} onClick={onBack}>
+            ← Volver
           </button>
         </div>
 
-        {(tab === "solo" || tab === "host") && (
-          <RoomSetup
-            allyBots={allyBots}
-            enemyBots={enemyBots}
-            minions={minions}
-            difficulty={difficulty}
-            onAllyBots={setAllyBots}
-            onEnemyBots={setEnemyBots}
-            onMinions={setMinions}
-            onDifficulty={setDifficulty}
-          />
-        )}
+        <div className="body">
+          <div className="heads-up">
+            <span aria-hidden="true">🖥️</span>
+            <span>
+              Las partidas se juegan mejor en <b>escritorio</b> (ratón y teclado). Aun así puedes
+              montar la sala aquí y compartir el código con quien quieras.
+            </span>
+          </div>
 
-        {tab === "solo" && (
-          <>
-            <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>
-              Entra directo a una partida contra bots con un campeón asignado. Sin esperas ni salas.
-            </p>
-            <button className="btn primary" style={{ width: "100%" }} disabled={!valid} onClick={() => onSolo(nm.trim(), cfg())}>
-              Jugar contra bots
+          <div className="field">
+            <label>Tu nombre de invocador</label>
+            <input
+              value={nm}
+              maxLength={16}
+              placeholder="p. ej. FeederSupreme"
+              onChange={(e) => setNm(e.target.value)}
+              onBlur={() => valid && onName(nm.trim())}
+            />
+          </div>
+
+          <div className="tabs">
+            <button className={tab === "solo" ? "active" : ""} onClick={() => setTab("solo")}>
+              Vs Bots
             </button>
-          </>
-        )}
-        {tab === "host" && (
-          <>
-            <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>
-              Crea una sala y consigue un código de 5 letras. Compártelo con tus amigos: los huecos vacíos se
-              rellenan con bots según lo que elijas arriba.
-            </p>
-            <button className="btn green" style={{ width: "100%" }} disabled={!valid} onClick={() => onHost(nm.trim(), cfg())}>
+            <button className={tab === "host" ? "active" : ""} onClick={() => setTab("host")}>
               Crear sala
             </button>
-          </>
-        )}
-        {tab === "join" && (
-          <>
-            <div className="field">
-              <label>Código de sala</label>
-              <input
-                className="code-input"
-                value={code}
-                maxLength={5}
-                placeholder="XXXXX"
-                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-              />
-            </div>
-            <button
-              className="btn blue"
-              style={{ width: "100%" }}
-              disabled={!valid || code.length < 4}
-              onClick={() => onJoin(code, nm.trim())}
-            >
-              Unirse a la sala
+            <button className={tab === "join" ? "active" : ""} onClick={() => setTab("join")}>
+              Unirse
             </button>
-          </>
-        )}
+          </div>
 
-        {error && <div className="err">{error}</div>}
+          {(tab === "solo" || tab === "host") && (
+            <>
+              <div className="setup-box">
+                <div className="lbl">Campo de batalla</div>
+                <div className="choice active" style={{ cursor: "default" }}>
+                  <div className="ct">🗺️ El Barranco del Alboroto</div>
+                  <div className="cd">1 calzada, jungla, hierba para flanquear · 1–7 por equipo.</div>
+                </div>
+              </div>
+
+              <RoomSetup
+                allyBots={allyBots}
+                enemyBots={enemyBots}
+                minions={minions}
+                difficulty={difficulty}
+                onAllyBots={setAllyBots}
+                onEnemyBots={setEnemyBots}
+                onMinions={setMinions}
+                onDifficulty={setDifficulty}
+              />
+            </>
+          )}
+
+          {tab === "solo" && (
+            <>
+              <p className="hint">
+                Entra directo a una partida contra bots con un campeón asignado. Sin esperas ni salas.
+              </p>
+              <button className="btn primary block lg" disabled={!valid} onClick={() => onSolo(nm.trim(), cfg())}>
+                ▷ Jugar contra bots
+              </button>
+            </>
+          )}
+          {tab === "host" && (
+            <>
+              <p className="hint">
+                Crea una sala y consigue un código de 5 letras. Compártelo: los huecos vacíos se
+                rellenan con bots según lo que elijas arriba.
+              </p>
+              <button className="btn green block lg" disabled={!valid} onClick={() => onHost(nm.trim(), cfg())}>
+                Crear sala
+              </button>
+            </>
+          )}
+          {tab === "join" && (
+            <>
+              <div className="field">
+                <label>Código de sala</label>
+                <input
+                  className="code-input"
+                  value={code}
+                  maxLength={5}
+                  placeholder="XXXXX"
+                  onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                />
+              </div>
+              <button
+                className="btn blue block lg"
+                disabled={!valid || code.length < 4}
+                onClick={() => onJoin(code, nm.trim())}
+              >
+                Unirse a la sala
+              </button>
+            </>
+          )}
+
+          {error && <div className="err">{error}</div>}
+        </div>
       </div>
     </div>
   );
@@ -323,42 +345,47 @@ function RoomSetup({
   onMinions: (b: boolean) => void;
   onDifficulty: (d: GameConfig["difficulty"]) => void;
 }) {
-  return (
-    <div
-      style={{
-        background: "var(--bg-2)",
-        border: "1px solid var(--border)",
-        borderRadius: 12,
-        padding: 14,
-        marginBottom: 16,
-      }}
-    >
-      <div style={{ fontWeight: 800, marginBottom: 10, fontSize: 15 }}>Configuración de la partida</div>
+  const DIFFS: { v: GameConfig["difficulty"]; label: string }[] = [
+    { v: "casual", label: "Relajado" },
+    { v: "normal", label: "Normal" },
+    { v: "savage", label: "Sudoroso" },
+  ];
 
-      <div className="field" style={{ marginBottom: 12 }}>
+  return (
+    <div className="setup-box">
+      <div className="lbl">Configuración de la partida</div>
+
+      <div className="field" style={{ marginBottom: 14 }}>
         <label>
           Compañeros bot (tu equipo): <b style={{ color: "var(--green)" }}>{allyBots}</b> — jugáis {allyBots + 1}
         </label>
-        <input type="range" min={0} max={4} value={allyBots} style={{ width: "100%" }} onChange={(e) => onAllyBots(Number(e.target.value))} />
+        <input type="range" min={0} max={4} value={allyBots} onChange={(e) => onAllyBots(Number(e.target.value))} />
       </div>
 
-      <div className="field" style={{ marginBottom: 12 }}>
+      <div className="field" style={{ marginBottom: 14 }}>
         <label>
           Bots enemigos: <b style={{ color: "var(--red)" }}>{enemyBots}</b>
         </label>
-        <input type="range" min={1} max={5} value={enemyBots} style={{ width: "100%" }} onChange={(e) => onEnemyBots(Number(e.target.value))} />
+        <input type="range" min={1} max={5} value={enemyBots} onChange={(e) => onEnemyBots(Number(e.target.value))} />
       </div>
 
-      <div className="field" style={{ marginBottom: 12 }}>
+      <div className="field" style={{ marginBottom: 14 }}>
         <label>Dificultad de los bots</label>
-        <select value={difficulty} onChange={(e) => onDifficulty(e.target.value as GameConfig["difficulty"])}>
-          <option value="casual">Fácil (bots despistados)</option>
-          <option value="normal">Normal</option>
-          <option value="savage">Difícil (bots con cafeína)</option>
-        </select>
+        <div className="segmented">
+          {DIFFS.map((d) => (
+            <button
+              key={d.v}
+              className={difficulty === d.v ? "active" : ""}
+              onClick={() => onDifficulty(d.v)}
+              type="button"
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
+      <label className="check">
         <input type="checkbox" checked={minions} onChange={(e) => onMinions(e.target.checked)} />
         Oleadas de minions
       </label>
