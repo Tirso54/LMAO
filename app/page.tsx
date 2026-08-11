@@ -30,7 +30,7 @@ export default function LandingPage() {
           <span className="badge">Mapa abierto</span>
         </div>
         <h1>
-          LMAO — <span className="accent">League of Møøbas</span>
+          LMAO — <span className="accent">League of Mobass</span>
         </h1>
         <p className="tagline">
           Un MOBA para jugar directo en el navegador, ahora en un <b>mapa mucho más abierto</b>. Elige a tu
@@ -148,7 +148,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="footer">
-        LMAO — League of Møøbas es un juego de parodia, sin afiliación ni respaldo de ningún juego real.
+        LMAO — League of Mobass es un juego de parodia, sin afiliación ni respaldo de ningún juego real.
         Cualquier parecido con campeones vivos o muertos es pura coincidencia. Construido con Next.js,
         React y WebRTC (PeerJS). Sin tiendas, sin cuentas, sin necesidad de instalar nada.
         <br />

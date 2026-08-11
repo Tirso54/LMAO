@@ -1,4 +1,4 @@
-# LMAO — League of Møøbas: The Amazingly Off-brand MOBA
+# LMAO — League of Mobass: The Amazingly Off-brand MOBA
 
 > Why pay full price for a MOBA when you can pay **$0** for this legally-distinct one?
 > **LMAO** is a bargain-bin *League of Legends* knockoff you can actually play online with your friends.
@@ -7,7 +7,7 @@ A complete, browser-based ARAM-style MOBA built with **Next.js + React + TypeScr
 authoritative game engine, an HTML5 Canvas renderer, and **host-authoritative WebRTC (PeerJS) netcode** —
 so it deploys anywhere Next.js does, with **no dedicated game server required.**
 
-*(“LMAO” officially stands for **L**eague of **M**øøbas: **A**mazingly **O**ff-brand.)*
+*(“LMAO” officially stands for **L**eague of **M**obass: **A**mazingly **O**ff-brand.)*
 
 ---
 
@@ -96,5 +96,5 @@ their champion is handed to the AI. Solo play is just a host with no remote peer
 
 ---
 
-*LMAO — League of Møøbas is a parody and is not affiliated with, endorsed by, or legally distinct enough from
+*LMAO — League of Mobass is a parody and is not affiliated with, endorsed by, or legally distinct enough from
 any real game. Any resemblance to champions living or dead is a coincidence we will deny in court.*

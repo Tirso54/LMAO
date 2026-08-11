@@ -502,6 +502,19 @@ function fireAutoAttack(state: GameState, champ: Champion, forced?: Entity) {
   const isRanged = def.ranged;
   const damageType = "physical";
 
+  // Face the target so the shot reads as aimed, and flash a muzzle FX.
+  champ.face = Math.atan2(target.pos.y - champ.pos.y, target.pos.x - champ.pos.x);
+  state.fx.push({
+    t: "shot",
+    x: champ.pos.x,
+    y: champ.pos.y,
+    x2: target.pos.x,
+    y2: target.pos.y,
+    team: champ.team,
+    color: def.color,
+    radius: isRanged ? 8 : 5,
+  });
+
   const applyLanding = (hitTarget: Entity) => {
     if (!hitTarget || !hitTarget.alive) return;
     dealDamage(state, champ.id, hitTarget, dmg, damageType, { isAuto: true, isCrit });
@@ -569,6 +582,8 @@ function fireAutoAttack(state: GameState, champ: Champion, forced?: Entity) {
     (proj as any)._apply = applyLanding;
     state.projectiles.push(proj);
   } else {
+    // Melee: a quick slash streak from attacker to target.
+    state.fx.push({ t: "beam", x: champ.pos.x, y: champ.pos.y, x2: target.pos.x, y2: target.pos.y, team: champ.team, color: def.color, radius: 6 });
     applyLanding(target);
   }
 }

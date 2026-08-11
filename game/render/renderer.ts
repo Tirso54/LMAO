@@ -1,7 +1,7 @@
 import { Snapshot, ChampSnap, MinionSnap, StructSnap, ProjSnap, ZoneSnap } from "../net/protocol";
 import { FxEvent, Team } from "../engine/types";
 import { CHAMPIONS } from "../engine/champions";
-import { WORLD, STRUCTURES, LANE_Y, ROAD_HALF } from "../engine/constants";
+import { WORLD, STRUCTURES, LANE_Y, ROAD_HALF, BUSH_SPOTS, JUNGLE_CAMPS } from "../engine/constants";
 
 export interface Camera {
   x: number;
@@ -126,6 +126,30 @@ export class FxSystem {
       case "ping":
         this.particles.push({ x: e.x, y: e.y, vx: 0, vy: 0, life: 1.0, max: 1.0, color: e.color || "#ffd23f", size: 34, kind: "ping" });
         break;
+      case "shot": {
+        // Big visible shot: bright beam + muzzle flash + sparks + recoil ring.
+        const tx = e.x2 ?? e.x;
+        const ty = e.y2 ?? e.y;
+        const ang = Math.atan2(ty - e.y, tx - e.x);
+        const mx = e.x + Math.cos(ang) * 24;
+        const my = e.y + Math.sin(ang) * 24;
+        const col = e.color || "#fff";
+        // Trail beam along the shot path (persists a little).
+        this.particles.push({ x: mx, y: my, x2: tx, y2: ty, vx: 0, vy: 0, life: 0.35, max: 0.35, color: col, size: (e.radius || 7) + 4, kind: "beam" });
+        // Big muzzle flash at the source.
+        this.particles.push({ x: mx, y: my, vx: 0, vy: 0, life: 0.35, max: 0.35, color: col, size: (e.radius || 7) + 10, kind: "flash" });
+        // Impact flash at the target.
+        this.particles.push({ x: tx, y: ty, vx: 0, vy: 0, life: 0.3, max: 0.3, color: col, size: (e.radius || 7) + 6, kind: "flash" });
+        // Recoil ring at the muzzle.
+        this.particles.push({ x: mx, y: my, vx: 0, vy: 0, life: 0.3, max: 0.3, color: col, size: 22, kind: "ring" });
+        // Sparks kicking back from the muzzle.
+        for (let i = 0; i < 6; i++) {
+          const a = ang + Math.PI + (Math.random() - 0.5) * 1.1;
+          const s = 260 + Math.random() * 220;
+          this.particles.push({ x: mx, y: my, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.28, max: 0.28, color: col, size: 3, kind: "spark" });
+        }
+        break;
+      }
     }
   }
 
@@ -149,6 +173,22 @@ export class FxSystem {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
+      } else if (p.kind === "flash") {
+        // Bright muzzle flash: a glowing core that shrinks as it fades.
+        const r = p.size * (0.6 + alpha * 0.8);
+        ctx.save();
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = alpha * 0.6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       } else if (p.kind === "text") {
         ctx.font = `bold ${p.size}px 'Trebuchet MS', sans-serif`;
         ctx.textAlign = "center";
@@ -196,10 +236,24 @@ let CLEARINGS: { x: number; y: number; r: number }[] | null = null;
 
 // Keep decor clear of the central road and the two base areas.
 function inBaseZone(x: number): boolean {
-  return x < 620 || x > WORLD.width - 620;
+  return x < 800 || x > WORLD.width - 800;
 }
 function onRoad(y: number): boolean {
   return Math.abs(y - LANE_Y) < ROAD_HALF + 40;
+}
+
+function inNamedBush(x: number, y: number): boolean {
+  for (const b of BUSH_SPOTS) {
+    if ((x - b.x) ** 2 + (y - b.y) ** 2 < (b.r + 30) ** 2) return true;
+  }
+  return false;
+}
+
+function nearCamp(x: number, y: number): boolean {
+  for (const c of JUNGLE_CAMPS) {
+    if ((x - c.x) ** 2 + (y - c.y) ** 2 < 130 ** 2) return true;
+  }
+  return false;
 }
 
 function buildDeco() {
@@ -209,16 +263,32 @@ function buildDeco() {
   const top = WORLD.laneTop;
   const bot = WORLD.laneBottom;
 
-  // Circular bush clusters spread across the whole open field (like the
-  // reference art): groups of overlapping blobs that read as tactical cover.
-  const clusterCount = 46;
+  // Dense blobs INSIDE each named bush clearing (the yellow-ringed ones).
+  for (const spot of BUSH_SPOTS) {
+    const blobs = 14 + Math.floor(rng() * 6);
+    for (let b = 0; b < blobs; b++) {
+      const a = rng() * Math.PI * 2;
+      const rad = rng() * spot.r * 0.9;
+      BUSHES.push({
+        x: spot.x + Math.cos(a) * rad,
+        y: spot.y + Math.sin(a) * rad,
+        r: 30 + rng() * 40,
+        sway: rng() * Math.PI * 2,
+      });
+    }
+  }
+
+  // Small ambient bush clusters across the rest of the field (avoiding
+  // the road, base zones, named bushes and jungle camps).
+  const clusterCount = 90;
   for (let c = 0; c < clusterCount; c++) {
-    let cx = 0, cy = 0;
-    for (let tries = 0; tries < 12; tries++) {
+    let cx = 0, cy = 0, ok = false;
+    for (let tries = 0; tries < 20; tries++) {
       cx = 200 + rng() * (WORLD.width - 400);
       cy = top + 60 + rng() * (bot - top - 120);
-      if (!inBaseZone(cx) && !onRoad(cy)) break;
+      if (!inBaseZone(cx) && !onRoad(cy) && !inNamedBush(cx, cy) && !nearCamp(cx, cy)) { ok = true; break; }
     }
+    if (!ok) continue;
     const blobs = 3 + Math.floor(rng() * 4);
     for (let b = 0; b < blobs; b++) {
       const a = rng() * Math.PI * 2;
@@ -226,7 +296,7 @@ function buildDeco() {
       BUSHES.push({
         x: cx + Math.cos(a) * rad,
         y: cy + Math.sin(a) * rad,
-        r: 30 + rng() * 40,
+        r: 26 + rng() * 36,
         sway: rng() * Math.PI * 2,
       });
     }
@@ -242,7 +312,7 @@ function buildDeco() {
 
   // Faint mossy "clearings" (open circles) to break up the field.
   CLEARINGS = [];
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 16; i++) {
     let x = 0, y = 0;
     for (let tries = 0; tries < 10; tries++) {
       x = 700 + rng() * (WORLD.width - 1400);
@@ -353,6 +423,30 @@ export function drawWorld(ctx: CanvasRenderingContext2D, time: number) {
   drawFountain(ctx, "blue", time);
   drawFountain(ctx, "red", time);
 
+  // Yellow ring indicators around the named bush clearings (matches the
+  // reference art — each cover circle is clearly outlined so you can see
+  // where you'd be hidden). Draw the ring UNDER the bush blobs.
+  for (const spot of BUSH_SPOTS) {
+    ctx.save();
+    // Soft inner glow.
+    const g = ctx.createRadialGradient(spot.x, spot.y, spot.r * 0.4, spot.x, spot.y, spot.r);
+    g.addColorStop(0, "rgba(180, 210, 90, 0.10)");
+    g.addColorStop(1, "rgba(180, 210, 90, 0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(spot.x, spot.y, spot.r, 0, Math.PI * 2); ctx.fill();
+    // Yellow outline (like a ward or bush indicator).
+    ctx.strokeStyle = "rgba(210, 190, 90, 0.55)";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(spot.x, spot.y, spot.r, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Jungle camps: a mossy circle with a monster silhouette.
+  for (const camp of JUNGLE_CAMPS) {
+    drawCamp(ctx, camp.x, camp.y, camp.kind, time);
+  }
+
   // Candles / braziers (ambient warm glow).
   for (const c of CANDLES!) {
     const flick = 0.6 + 0.4 * Math.sin(time * 6 + c.x);
@@ -387,19 +481,37 @@ function drawBasePlatform(ctx: CanvasRenderingContext2D, team: Team) {
   const color = TEAM_COLOR[team];
   const nx = s.nexus.x;
   const fx = s.fountain.x;
-  const minX = Math.min(nx, fx) - 220;
-  const maxX = Math.max(nx, fx) + 160;
-  const top = WORLD.laneTop - 120;
-  const bot = WORLD.laneBottom + 120;
-  // Raised platform slab.
-  ctx.fillStyle = team === "blue" ? "rgba(40,80,140,0.28)" : "rgba(150,45,45,0.28)";
-  roundRect(ctx, minX, top, maxX - minX, bot - top, 40);
+  const minX = Math.min(nx, fx) - 260;
+  const maxX = Math.max(nx, fx) + 260;
+  // Base area: a stepped hex-ish shape (narrow tail on the road side, wide
+  // flanks around the nexus) so the flanking turrets sit on team ground.
+  const top = LANE_Y - 320;
+  const bot = LANE_Y + 320;
+  ctx.save();
+  ctx.fillStyle = team === "blue" ? "rgba(40,80,140,0.16)" : "rgba(150,45,45,0.16)";
+  ctx.beginPath();
+  if (team === "blue") {
+    ctx.moveTo(minX, top);
+    ctx.lineTo(maxX - 80, top);
+    ctx.lineTo(maxX, LANE_Y - 60);
+    ctx.lineTo(maxX, LANE_Y + 60);
+    ctx.lineTo(maxX - 80, bot);
+    ctx.lineTo(minX, bot);
+  } else {
+    ctx.moveTo(maxX, top);
+    ctx.lineTo(minX + 80, top);
+    ctx.lineTo(minX, LANE_Y - 60);
+    ctx.lineTo(minX, LANE_Y + 60);
+    ctx.lineTo(minX + 80, bot);
+    ctx.lineTo(maxX, bot);
+  }
+  ctx.closePath();
   ctx.fill();
   ctx.strokeStyle = color;
-  ctx.globalAlpha = 0.5;
-  ctx.lineWidth = 4;
+  ctx.globalAlpha = 0.35;
+  ctx.lineWidth = 3;
   ctx.stroke();
-  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -441,6 +553,154 @@ export function drawFountain(ctx: CanvasRenderingContext2D, team: Team, time: nu
   ctx.shadowColor = color; ctx.shadowBlur = 20;
   ctx.beginPath(); ctx.ellipse(f.x, f.y - 6, 14, 12, 0, 0, Math.PI * 2); ctx.fill();
   ctx.shadowBlur = 0;
+}
+
+function drawCamp(ctx: CanvasRenderingContext2D, x: number, y: number, kind: "beetle" | "crab" | "spider", time: number) {
+  // Mossy pit.
+  const g = ctx.createRadialGradient(x, y, 20, x, y, 90);
+  g.addColorStop(0, "rgba(60, 40, 20, 0.55)");
+  g.addColorStop(1, "rgba(60, 40, 20, 0)");
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, 90, 0, Math.PI * 2); ctx.fill();
+  // Camp ring (subtle).
+  ctx.strokeStyle = "rgba(160, 120, 60, 0.35)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 6]);
+  ctx.beginPath(); ctx.arc(x, y, 70, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Body shadow.
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  ctx.beginPath(); ctx.ellipse(x, y + 14, 28, 10, 0, 0, Math.PI * 2); ctx.fill();
+
+  const wobble = Math.sin(time * 2 + x) * 2;
+  ctx.save();
+  ctx.translate(x, y + wobble);
+  if (kind === "beetle") {
+    // Reddish-brown beetle with segmented back.
+    ctx.fillStyle = "#8a4a2a";
+    ctx.beginPath(); ctx.ellipse(0, 0, 32, 22, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#5c2f1a";
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.ellipse(i * 10, -2, 3, 16, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    // Head + pincers.
+    ctx.fillStyle = "#3a1e12";
+    ctx.beginPath(); ctx.arc(0, -20, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#3a1e12";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-6, -26); ctx.lineTo(-14, -34);
+    ctx.moveTo(6, -26); ctx.lineTo(14, -34);
+    ctx.stroke();
+    // Yellow glow spot (like the reference monster).
+    ctx.fillStyle = "#f6d060";
+    ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill();
+  } else if (kind === "crab") {
+    ctx.fillStyle = "#b74a3a";
+    ctx.beginPath(); ctx.ellipse(0, 0, 28, 18, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#5a1e14";
+    // Claws.
+    ctx.beginPath(); ctx.arc(-24, 4, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(24, 4, 10, 0, Math.PI * 2); ctx.fill();
+    // Eyes.
+    ctx.fillStyle = "#ffde6a";
+    ctx.beginPath(); ctx.arc(-6, -6, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6, -6, 3, 0, Math.PI * 2); ctx.fill();
+  } else {
+    // Spider.
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 4; i++) {
+      const a = (i - 1.5) * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(-8, 0);
+      ctx.lineTo(-20 - i * 2, -14 + i * 4);
+      ctx.moveTo(8, 0);
+      ctx.lineTo(20 + i * 2, -14 + i * 4);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#151515";
+    ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#c73b3b";
+    ctx.beginPath(); ctx.arc(-4, -3, 2.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4, -3, 2.4, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// Small overlay minimap of the whole battlefield.
+export function drawMinimap(
+  ctx: CanvasRenderingContext2D,
+  snap: Snapshot,
+  localOwnerId: string,
+  screenW: number,
+  screenH: number
+) {
+  const W = 220;
+  const H = Math.round(W * (WORLD.height / WORLD.width));
+  const pad = 14;
+  // Bottom-right corner (classic MOBA position), safely above joystick area.
+  const x0 = screenW - W - pad;
+  const y0 = screenH - H - pad - 200;
+  const sx = W / WORLD.width;
+  const sy = H / WORLD.height;
+
+  ctx.save();
+  ctx.fillStyle = "rgba(10, 20, 14, 0.85)";
+  ctx.strokeStyle = "rgba(210, 190, 90, 0.55)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.rect(x0, y0, W, H);
+  ctx.fill();
+  ctx.stroke();
+
+  // Faint field tint.
+  ctx.fillStyle = "rgba(28, 68, 38, 0.55)";
+  ctx.fillRect(x0, y0, W, H);
+
+  // Lane road.
+  const roadTop = LANE_Y - ROAD_HALF;
+  ctx.fillStyle = "rgba(138, 106, 62, 0.85)";
+  ctx.fillRect(x0, y0 + roadTop * sy, W, (ROAD_HALF * 2) * sy);
+
+  // Bushes.
+  ctx.fillStyle = "rgba(50, 100, 55, 0.6)";
+  for (const s of BUSH_SPOTS) {
+    ctx.beginPath();
+    ctx.arc(x0 + s.x * sx, y0 + s.y * sy, Math.max(1.5, s.r * sx * 0.55), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Turrets and nexuses.
+  for (const t of snap.turrets) {
+    if (!t.alive) continue;
+    ctx.fillStyle = t.team === "blue" ? "#4a7fb5" : "#a04947";
+    ctx.fillRect(x0 + t.x * sx - 2, y0 + t.y * sy - 2, 4, 4);
+  }
+  for (const n of snap.nexuses) {
+    if (!n.alive) continue;
+    ctx.fillStyle = n.team === "blue" ? "#7fc0ff" : "#ff8b82";
+    ctx.beginPath();
+    ctx.arc(x0 + n.x * sx, y0 + n.y * sy, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Minions.
+  for (const m of snap.minions) {
+    ctx.fillStyle = m.team === "blue" ? "rgba(120,180,220,0.9)" : "rgba(240,140,130,0.9)";
+    ctx.beginPath();
+    ctx.arc(x0 + m.x * sx, y0 + m.y * sy, 1.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Champions.
+  for (const c of snap.champs) {
+    if (!c.alive) continue;
+    ctx.fillStyle = c.owner === localOwnerId ? "#ffd23f" : c.team === "blue" ? "#3aa0ff" : "#ff5a52";
+    ctx.beginPath();
+    ctx.arc(x0 + c.x * sx, y0 + c.y * sy, c.owner === localOwnerId ? 3.5 : 2.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 export function drawScene(
@@ -629,14 +889,24 @@ function drawMinion(ctx: CanvasRenderingContext2D, m: MinionSnap) {
 
 function drawProjectile(ctx: CanvasRenderingContext2D, p: ProjSnap) {
   const color = TEAM_COLOR[p.team];
+  const fill = p.k === "skillshot" ? lightColor(p.sp) : color;
+  const r = Math.max(6, Math.min(p.r, 26));
   ctx.save();
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 12;
-  ctx.fillStyle = p.k === "skillshot" ? lightColor(p.sp) : color;
-  const r = Math.max(5, Math.min(p.r, 26));
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-  ctx.fill();
+  // Outer glow halo.
+  const g = ctx.createRadialGradient(p.x, p.y, r * 0.2, p.x, p.y, r * 3);
+  g.addColorStop(0, fill);
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(p.x, p.y, r * 3, 0, Math.PI * 2); ctx.fill();
+  // Bright core.
+  ctx.globalAlpha = 1;
+  ctx.shadowColor = fill;
+  ctx.shadowBlur = 20;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.55, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = fill;
+  ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 

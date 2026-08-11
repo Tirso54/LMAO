@@ -62,7 +62,7 @@ export default function Lobby({
     <div className="center" style={{ alignItems: "stretch", padding: 0, minHeight: "100vh", justifyContent: "flex-start" }}>
       <div style={{ padding: "14px 20px", background: "linear-gradient(90deg, #16202e, #101722)", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", borderBottom: "1px solid var(--border)" }}>
         <div className="logo" style={{ fontSize: 22 }}>
-          LMAO — Møøbas
+          LMAO — Mobass
         </div>
         {session.role !== "solo" && (
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -215,7 +215,7 @@ export default function Lobby({
               style={{ flex: 1 }}
               onClick={() => session.setReady(!mySlot?.ready)}
             >
-              {mySlot?.ready ? "Ready!" : "Ready Up"}
+              {mySlot?.ready ? "¡Listo!" : "Marcar Listo"}
             </button>
             {isHost && (
               <button
@@ -223,7 +223,7 @@ export default function Lobby({
                 style={{ flex: 1 }}
                 onClick={() => session.start?.()}
               >
-                Start Match
+                Empezar partida
               </button>
             )}
           </div>

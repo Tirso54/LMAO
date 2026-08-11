@@ -104,7 +104,9 @@ export default function GameShell() {
         setName(nm);
         localStorage.setItem("lmao_name", nm);
       }
-      startHost(true, nm, true);
+      // Go to the lobby champion-select instead of auto-starting with a
+      // random champion, so the player picks their champion first.
+      startHost(true, nm, false);
     }
     // host/join are manual (need name/code)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -206,7 +208,7 @@ function Menu({
     <div className="overlay" style={{ position: "static", minHeight: "100vh" }}>
       <div className="modal">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2>LMAO — League of Møøbas</h2>
+          <h2>LMAO — League of Mobass</h2>
           <button className="btn ghost" style={{ padding: "6px 12px" }} onClick={onBack}>
             Volver
           </button>
