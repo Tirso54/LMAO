@@ -33,6 +33,12 @@ export default function GamePlay({
   const [shopOpen, setShopOpen] = useState(false);
   const shopOpenRef = useRef(false);
   const [showHelp, setShowHelp] = useState(false);
+  const isTouchRef = useRef(false);
+  const touchRef = useRef<{ moving: boolean; pinchDist: number; pinchZoom: number }>({ moving: false, pinchDist: 0, pinchZoom: 0.62 });
+
+  useEffect(() => {
+    isTouchRef.current = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+  }, []);
 
   useEffect(() => { shopOpenRef.current = shopOpen; }, [shopOpen]);
   useEffect(() => { localIdRef.current = session.localPlayerId; });
@@ -188,16 +194,74 @@ export default function GamePlay({
       }
     };
 
+    // ---- Touch controls (tablet) ----
+    const canvasWorld = (clientX: number, clientY: number) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current = { sx: clientX - rect.left, sy: clientY - rect.top };
+      return screenToWorld(clientX - rect.left, clientY - rect.top);
+    };
+    const touchOrder = (clientX: number, clientY: number) => {
+      const snap = latestSnap();
+      const me = findLocalChamp(snap);
+      if (!me) return;
+      const w = canvasWorld(clientX, clientY);
+      const enemy = nearestEnemyToCursor(w.x, w.y, me.team, 55);
+      if (enemy != null) {
+        pendingRef.current.attackTarget = enemy;
+        pendingRef.current.move = null;
+      } else {
+        pendingRef.current.move = { x: w.x, y: w.y };
+        pendingRef.current.attackTarget = null;
+      }
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      isTouchRef.current = true;
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        touchRef.current.pinchDist = Math.hypot(dx, dy);
+        touchRef.current.pinchZoom = camRef.current.zoom;
+        touchRef.current.moving = false;
+      } else if (e.touches.length === 1) {
+        touchRef.current.moving = true;
+        touchOrder(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const d = Math.hypot(dx, dy);
+        if (touchRef.current.pinchDist > 0) {
+          const ratio = d / touchRef.current.pinchDist;
+          camRef.current.zoom = Math.max(0.32, Math.min(1.1, touchRef.current.pinchZoom * ratio));
+        }
+      } else if (e.touches.length === 1 && touchRef.current.moving) {
+        touchOrder(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length === 0) touchRef.current.moving = false;
+    };
+
     window.addEventListener("mousemove", onMove);
     window.addEventListener("contextmenu", onContext);
     window.addEventListener("mousedown", onDown);
     canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+    canvas.addEventListener("touchend", onTouchEnd);
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("contextmenu", onContext);
       window.removeEventListener("mousedown", onDown);
       canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchmove", onTouchMove);
+      canvas.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("keydown", onKey);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -256,8 +320,16 @@ export default function GamePlay({
       fxRef.current.update(dt);
       fxRef.current.draw(ctx);
 
-      // Cursor target hint (screen space overlay handled by CSS cursor).
+      // Screen-space vignette for a cozy arena mood.
       ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const vg = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) * 0.35,
+        canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) * 0.75
+      );
+      vg.addColorStop(0, "rgba(0,0,0,0)");
+      vg.addColorStop(1, "rgba(0,0,0,0.55)");
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       raf = requestAnimationFrame(loop);
     };
@@ -284,10 +356,44 @@ export default function GamePlay({
     pendingRef.current.levelUp = slot;
   };
   const recall = () => { pendingRef.current.recall = true; };
+  const stop = () => { pendingRef.current.stop = true; };
+
+  // One-tap ability cast: auto-aim at the nearest enemy (tablet-friendly).
+  const castAuto = (slot: number) => {
+    const snap = latestSnap();
+    const me = findLocalChamp(snap);
+    if (!me || !snap) return;
+    const def = CHAMPIONS[me.cid].abilities[slot];
+    if (me.ab[slot].r <= 0) return;
+    // Nearest enemy champion, else nearest enemy unit.
+    let best: { x: number; y: number; id: number } | null = null;
+    let bd = Infinity;
+    const consider = (id: number, x: number, y: number, alive: boolean, team: Team) => {
+      if (!alive || team === me.team) return;
+      const d = Math.hypot(x - me.x, y - me.y);
+      if (d < bd) { bd = d; best = { x, y, id }; }
+    };
+    for (const c of snap.champs) consider(c.id, c.x, c.y, c.alive, c.team);
+    if (!best) {
+      for (const m of snap.minions) consider(m.id, m.x, m.y, true, m.team);
+      for (const t of snap.turrets) consider(t.id, t.x, t.y, t.alive, t.team);
+    }
+    let tx: number, ty: number, targetId: number | null = null;
+    const b = best as { x: number; y: number; id: number } | null;
+    if (b) {
+      tx = b.x; ty = b.y;
+      if (def.cast === "target" || def.cast === "dash") targetId = b.id;
+    } else {
+      tx = me.x + Math.cos(me.f) * (def.range || 400);
+      ty = me.y + Math.sin(me.f) * (def.range || 400);
+    }
+    pendingRef.current.casts = pendingRef.current.casts || [];
+    pendingRef.current.casts.push({ slot, x: tx, y: ty, targetId });
+  };
 
   return (
-    <div style={{ position: "fixed", inset: 0, overflow: "hidden", cursor: "crosshair", background: "#05070d" }}>
-      <canvas ref={canvasRef} style={{ display: "block" }} />
+    <div style={{ position: "fixed", inset: 0, overflow: "hidden", cursor: "crosshair", background: "#05070d", touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}>
+      <canvas ref={canvasRef} style={{ display: "block", touchAction: "none" }} />
       <Hud
         snap={hud}
         localId={session.localPlayerId}
@@ -297,6 +403,9 @@ export default function GamePlay({
         onSell={sellItem}
         onLevelUp={levelUp}
         onRecall={recall}
+        onStop={stop}
+        onCastAbility={castAuto}
+        isTouch={isTouchRef.current}
         onExit={onExit}
         onRematch={session.role !== "client" ? () => session.rematch?.() : undefined}
         showHelp={showHelp}

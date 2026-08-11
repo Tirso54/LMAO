@@ -18,6 +18,9 @@ export default function Hud({
   onSell,
   onLevelUp,
   onRecall,
+  onStop,
+  onCastAbility,
+  isTouch,
   onExit,
   onRematch,
   showHelp,
@@ -31,6 +34,9 @@ export default function Hud({
   onSell: (id: string) => void;
   onLevelUp: (slot: number) => void;
   onRecall: () => void;
+  onStop?: () => void;
+  onCastAbility?: (slot: number) => void;
+  isTouch?: boolean;
   onExit: () => void;
   onRematch?: () => void;
   showHelp: boolean;
@@ -67,12 +73,14 @@ export default function Hud({
       {/* Top scoreboard */}
       {snap && (
         <div style={topBar}>
-          <TeamScore team="blue" kills={snap.teamKills.blue} gold={snap.teamGold.blue} />
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontWeight: 900, fontSize: 22, fontVariantNumeric: "tabular-nums" }}>{mmss(snap.time)}</div>
-            <div style={{ fontSize: 11, color: "var(--ink-dim)" }}>Wave {snap.wave} · 🍄 Møøbas</div>
+          <div style={{ fontWeight: 900, fontSize: 26, color: "var(--blue)", minWidth: 34, textAlign: "center" }}>{snap.teamKills.blue}</div>
+          <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>VS</span>
+          <div style={{ textAlign: "center", minWidth: 70 }}>
+            <div style={{ fontWeight: 900, fontSize: 20, fontVariantNumeric: "tabular-nums" }}>{mmss(snap.time)}</div>
+            <div style={{ fontSize: 10, color: "var(--ink-dim)" }}>Wave {snap.wave}</div>
           </div>
-          <TeamScore team="red" kills={snap.teamKills.red} gold={snap.teamGold.red} right />
+          <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>VS</span>
+          <div style={{ fontWeight: 900, fontSize: 26, color: "var(--red)", minWidth: 34, textAlign: "center" }}>{snap.teamKills.red}</div>
         </div>
       )}
 
@@ -146,17 +154,22 @@ export default function Hud({
               const learned = ab.r > 0;
               const showPlus = me.points > 0 && canRank(me, i);
               return (
-                <div key={i} style={{ ...abilityBox, opacity: learned ? 1 : 0.55, borderColor: learned ? "var(--brand-orange)" : "var(--border)" }} title={`${a.name}: ${a.desc}`}>
+                <div
+                  key={i}
+                  onClick={() => learned && !onCd && onCastAbility?.(i)}
+                  style={{ ...abilityBox, opacity: learned ? 1 : 0.55, borderColor: learned ? "var(--brand-orange)" : "var(--border)", cursor: learned ? "pointer" : "default" }}
+                  title={`${a.name}: ${a.desc}`}
+                >
                   <div style={{ fontSize: 28 }}>{a.emoji}</div>
                   {onCd && <div style={cdOverlay}>{ab.cd.toFixed(1)}</div>}
-                  <div style={keyBadge}>{KEYS[i]}</div>
+                  <div style={keyBadge}>{isTouch ? "" : KEYS[i]}</div>
                   <div style={rankPips}>
                     {Array.from({ length: a.maxRank || 5 }).map((_, r) => (
                       <span key={r} style={{ width: 6, height: 4, borderRadius: 1, background: r < ab.r ? "var(--brand-yellow)" : "rgba(255,255,255,0.2)" }} />
                     ))}
                   </div>
                   {showPlus && (
-                    <button style={plusBtn} onClick={() => onLevelUp(i)}>+</button>
+                    <button style={plusBtn} onClick={(e) => { e.stopPropagation(); onLevelUp(i); }}>+</button>
                   )}
                 </div>
               );
@@ -176,8 +189,9 @@ export default function Hud({
               })}
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <button className="btn primary" style={miniBtn} onClick={() => setShopOpen(!shopOpen)}>🛒 Shop (P)</button>
-              <button className="btn blue" style={miniBtn} onClick={onRecall}>🏠 B</button>
+              <button className="btn primary" style={miniBtn} onClick={() => setShopOpen(!shopOpen)}>🛒 Shop</button>
+              <button className="btn blue" style={miniBtn} onClick={onRecall}>🏠 Recall</button>
+              <button className="btn ghost" style={miniBtn} onClick={() => onStop?.()}>✋ Stop</button>
             </div>
           </div>
         </div>
@@ -366,13 +380,18 @@ function HelpModal({ onClose }: { onClose: () => void }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>🎮 How to Play</h2>
         <div className="sub">You've got this. Probably.</div>
-        <ul style={{ lineHeight: 1.9, fontSize: 14 }}>
-          <li><b>Right-click</b> — move / attack an enemy</li>
-          <li><b>Q W E R</b> — cast abilities toward your cursor (quickcast)</li>
-          <li><b>A</b> — attack-move toward cursor · <b>S</b> — stop</li>
-          <li><b>B</b> — recall to base · <b>P</b> — open shop (must be in fountain)</li>
-          <li><b>+ button</b> or <b>Ctrl+Q/W/E/R</b> — level up an ability</li>
-          <li><b>Mouse wheel</b> — zoom · <b>Alt+Click</b> — ping</li>
+        <div style={{ fontWeight: 800, marginBottom: 4 }}>📱 Touch / Tablet</div>
+        <ul style={{ lineHeight: 1.8, fontSize: 14, marginTop: 0 }}>
+          <li><b>Tap / drag the map</b> — move · <b>tap an enemy</b> — attack it</li>
+          <li><b>Tap an ability button</b> (Q/W/E/R) — auto-aims at the nearest enemy</li>
+          <li><b>Pinch</b> — zoom · <b>Shop / Recall / Stop</b> buttons bottom-right</li>
+          <li><b>＋ on an ability</b> — level it up</li>
+        </ul>
+        <div style={{ fontWeight: 800, margin: "8px 0 4px" }}>🖱️ Mouse / Keyboard</div>
+        <ul style={{ lineHeight: 1.8, fontSize: 14, marginTop: 0 }}>
+          <li><b>Right-click</b> — move / attack · <b>Q W E R</b> — cast at cursor</li>
+          <li><b>A</b> attack-move · <b>S</b> stop · <b>B</b> recall · <b>P</b> shop</li>
+          <li><b>Ctrl+Q/W/E/R</b> — level up · <b>Wheel</b> zoom · <b>Alt+Click</b> ping</li>
         </ul>
         <div style={{ fontSize: 13, color: "var(--ink-dim)", marginTop: 10 }}>
           Goal: push a lane with your minions, destroy the enemy turrets, then smash their <b>Nexus</b>.
@@ -385,7 +404,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
 }
 
 // ---- styles ----
-const topBar: React.CSSProperties = { position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 30, alignItems: "center", background: "rgba(0,0,0,0.55)", borderRadius: 12, padding: "6px 22px", border: "1px solid var(--border)" };
+const topBar: React.CSSProperties = { position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 14, alignItems: "center", background: "rgba(0,0,0,0.6)", borderRadius: 12, padding: "6px 20px", border: "1px solid var(--border)" };
 const rosterWrap: React.CSSProperties = { position: "absolute", top: 70, left: 8 };
 const killFeed: React.CSSProperties = { position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)", width: 340, textAlign: "center" };
 const bottomBar: React.CSSProperties = { position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 14, alignItems: "flex-end", background: "rgba(0,0,0,0.5)", borderRadius: 14, padding: "10px 16px", border: "1px solid var(--border)" };

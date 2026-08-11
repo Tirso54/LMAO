@@ -188,70 +188,195 @@ export class FxSystem {
 // ---------------------------------------------------------------------------
 // World / scene drawing
 // ---------------------------------------------------------------------------
-export function drawWorld(ctx: CanvasRenderingContext2D, time: number) {
-  // Poke-pit background.
-  ctx.fillStyle = "#0a0e1a";
-  ctx.fillRect(-200, -600, WORLD.width + 400, WORLD.height + 1200);
-
-  // The bridge band.
+// Deterministic decorative scatter (bushes, candles) computed once.
+interface Deco { x: number; y: number; r: number; sway: number; }
+let BUSHES: Deco[] | null = null;
+let CANDLES: { x: number; y: number }[] | null = null;
+function buildDeco() {
+  if (BUSHES) return;
+  const rng = mulberry(1337);
+  BUSHES = [];
   const top = WORLD.laneTop;
   const bot = WORLD.laneBottom;
-  const grd = ctx.createLinearGradient(0, top, 0, bot);
-  grd.addColorStop(0, "#20304f");
-  grd.addColorStop(0.5, "#2a3d63");
-  grd.addColorStop(1, "#1c2942");
-  ctx.fillStyle = grd;
-  ctx.fillRect(-100, top, WORLD.width + 200, bot - top);
+  // Scatter bushes in the off-lane grass (above and below the road).
+  for (let i = 0; i < 260; i++) {
+    const x = rng() * (WORLD.width + 400) - 200;
+    const below = rng() > 0.5;
+    const band = below ? [bot + 40, WORLD.height + 380] : [-380, top - 40];
+    const y = band[0] + rng() * (band[1] - band[0]);
+    BUSHES.push({ x, y, r: 26 + rng() * 40, sway: rng() * Math.PI * 2 });
+  }
+  // A few clusters along the road edges too.
+  for (let i = 0; i < 40; i++) {
+    const x = rng() * WORLD.width;
+    const y = (rng() > 0.5 ? bot + 12 : top - 12) + (rng() - 0.5) * 24;
+    BUSHES.push({ x, y, r: 22 + rng() * 26, sway: rng() * Math.PI * 2 });
+  }
+  CANDLES = [];
+  for (let i = 0; i < 14; i++) {
+    const x = 500 + rng() * (WORLD.width - 1000);
+    const y = (rng() > 0.5 ? bot + 120 : top - 120) + (rng() - 0.5) * 200;
+    CANDLES.push({ x, y });
+  }
+}
+function mulberry(seed: number) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
-  // Bridge edges glowing.
-  ctx.strokeStyle = "rgba(120,180,255,0.4)";
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.moveTo(-100, top); ctx.lineTo(WORLD.width + 100, top);
-  ctx.moveTo(-100, bot); ctx.lineTo(WORLD.width + 100, bot);
-  ctx.stroke();
+export function drawWorld(ctx: CanvasRenderingContext2D, time: number) {
+  buildDeco();
+  const top = WORLD.laneTop;
+  const bot = WORLD.laneBottom;
 
-  // Center dashed line.
-  ctx.strokeStyle = "rgba(255,255,255,0.06)";
-  ctx.lineWidth = 3;
-  ctx.setLineDash([30, 26]);
-  ctx.beginPath();
-  ctx.moveTo(-100, LANE_Y); ctx.lineTo(WORLD.width + 100, LANE_Y);
-  ctx.stroke();
-  ctx.setLineDash([]);
+  // Grass field background (generously oversized so the camera never shows void).
+  const M = 2600;
+  const gg = ctx.createLinearGradient(0, -M, 0, WORLD.height + M);
+  gg.addColorStop(0, "#15361f");
+  gg.addColorStop(0.5, "#1c4527");
+  gg.addColorStop(1, "#12301b");
+  ctx.fillStyle = gg;
+  ctx.fillRect(-M, -M, WORLD.width + M * 2, WORLD.height + M * 2);
 
-  // Faux cobblestone dots.
-  ctx.fillStyle = "rgba(255,255,255,0.03)";
-  for (let x = 0; x < WORLD.width; x += 120) {
-    for (let y = top + 40; y < bot; y += 90) {
+  // Soft grass mottling (large translucent blobs).
+  ctx.save();
+  for (let i = 0; i < 90; i++) {
+    const rng = ((i * 9301 + 49297) % 233280) / 233280;
+    const x = (i * 337) % (WORLD.width + 400) - 200;
+    const y = ((i * 911) % (WORLD.height + 700)) - 350;
+    ctx.fillStyle = i % 2 ? "rgba(255,255,255,0.015)" : "rgba(0,0,0,0.04)";
+    ctx.beginPath();
+    ctx.ellipse(x, y, 120 + rng * 120, 70 + rng * 60, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Dirt lane road with soft grassy shoulders.
+  ctx.fillStyle = "rgba(20,45,26,0.9)";
+  ctx.fillRect(-M, top - 26, WORLD.width + M * 2, bot - top + 52);
+  const road = ctx.createLinearGradient(0, top, 0, bot);
+  road.addColorStop(0, "#7a5c34");
+  road.addColorStop(0.5, "#8a6a3e");
+  road.addColorStop(1, "#6e5230");
+  ctx.fillStyle = road;
+  ctx.fillRect(-M, top, WORLD.width + M * 2, bot - top);
+  // Road speckle.
+  for (let x = 0; x < WORLD.width; x += 70) {
+    for (let y = top + 20; y < bot; y += 60) {
+      const r = ((x * 13 + y * 7) % 17) / 17;
+      ctx.fillStyle = r > 0.5 ? "rgba(0,0,0,0.06)" : "rgba(255,235,200,0.05)";
       ctx.beginPath();
-      ctx.arc(x + ((y / 90) % 2) * 60, y, 5, 0, Math.PI * 2);
+      ctx.arc(x + (y % 120), y, 3 + r * 3, 0, Math.PI * 2);
       ctx.fill();
     }
   }
+  // Road grass edges.
+  ctx.strokeStyle = "rgba(40,90,50,0.85)";
+  ctx.lineWidth = 10;
+  ctx.beginPath();
+  ctx.moveTo(-M, top); ctx.lineTo(WORLD.width + M, top);
+  ctx.moveTo(-M, bot); ctx.lineTo(WORLD.width + M, bot);
+  ctx.stroke();
 
-  // Base zones.
-  drawBaseZone(ctx, "blue", STRUCTURES.blue.fountain, STRUCTURES.blue.nexus);
-  drawBaseZone(ctx, "red", STRUCTURES.red.fountain, STRUCTURES.red.nexus);
+  // Base platforms (team-tinted stone).
+  drawBasePlatform(ctx, "blue");
+  drawBasePlatform(ctx, "red");
+  drawFountain(ctx, "blue", time);
+  drawFountain(ctx, "red", time);
+
+  // Candles / braziers (ambient warm glow).
+  for (const c of CANDLES!) {
+    const flick = 0.6 + 0.4 * Math.sin(time * 6 + c.x);
+    const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, 70);
+    g.addColorStop(0, `rgba(255,190,90,${0.28 * flick})`);
+    g.addColorStop(1, "rgba(255,190,90,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(c.x, c.y, 70, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffcf6b";
+    ctx.beginPath(); ctx.ellipse(c.x, c.y, 5, 9 * flick, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Bushes (with shadow + sway).
+  for (const b of BUSHES!) {
+    const s = Math.sin(time * 1.5 + b.sway) * 3;
+    ctx.fillStyle = "rgba(0,0,0,0.28)";
+    ctx.beginPath();
+    ctx.ellipse(b.x + 4, b.y + b.r * 0.5, b.r * 0.95, b.r * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#123a1e";
+    ctx.beginPath(); ctx.arc(b.x + s, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#1b5029";
+    ctx.beginPath(); ctx.arc(b.x + s - b.r * 0.3, b.y - b.r * 0.25, b.r * 0.62, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(b.x + s + b.r * 0.35, b.y - b.r * 0.1, b.r * 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(120,200,120,0.18)";
+    ctx.beginPath(); ctx.arc(b.x + s - b.r * 0.3, b.y - b.r * 0.4, b.r * 0.28, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
-function drawBaseZone(ctx: CanvasRenderingContext2D, team: Team, fountain: { x: number; y: number }, nexus: { x: number; y: number }) {
-  ctx.fillStyle = team === "blue" ? "rgba(58,160,255,0.08)" : "rgba(255,90,82,0.08)";
-  const minX = Math.min(fountain.x, nexus.x) - 140;
-  const maxX = Math.max(fountain.x, nexus.x) + 140;
-  ctx.fillRect(minX < 0 ? -100 : minX, WORLD.laneTop, maxX - (minX < 0 ? -100 : minX), WORLD.laneBottom - WORLD.laneTop);
-  // Fountain pad.
-  ctx.fillStyle = TEAM_GLOW[team];
-  ctx.beginPath();
-  ctx.arc(fountain.x, fountain.y, 110, 0, Math.PI * 2);
+function drawBasePlatform(ctx: CanvasRenderingContext2D, team: Team) {
+  const s = STRUCTURES[team];
+  const color = TEAM_COLOR[team];
+  const nx = s.nexus.x;
+  const fx = s.fountain.x;
+  const minX = Math.min(nx, fx) - 220;
+  const maxX = Math.max(nx, fx) + 160;
+  const top = WORLD.laneTop - 120;
+  const bot = WORLD.laneBottom + 120;
+  // Raised platform slab.
+  ctx.fillStyle = team === "blue" ? "rgba(40,80,140,0.28)" : "rgba(150,45,45,0.28)";
+  roundRect(ctx, minX, top, maxX - minX, bot - top, 40);
   ctx.fill();
-  ctx.strokeStyle = TEAM_COLOR[team];
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 4;
   ctx.stroke();
-  ctx.fillStyle = TEAM_COLOR[team];
-  ctx.font = "bold 22px 'Trebuchet MS'";
-  ctx.textAlign = "center";
-  ctx.fillText("★ FOUNTAIN ★", fountain.x, fountain.y - 130);
+  ctx.globalAlpha = 1;
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+export function drawFountain(ctx: CanvasRenderingContext2D, team: Team, time: number) {
+  const f = STRUCTURES[team].fountain;
+  const color = TEAM_COLOR[team];
+  // Glow.
+  const g = ctx.createRadialGradient(f.x, f.y, 10, f.x, f.y, 150);
+  g.addColorStop(0, team === "blue" ? "rgba(90,180,255,0.5)" : "rgba(255,110,100,0.5)");
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(f.x, f.y, 150, 0, Math.PI * 2); ctx.fill();
+  // Stone rim.
+  ctx.fillStyle = "#2a2f3a";
+  ctx.beginPath(); ctx.ellipse(f.x, f.y, 96, 78, 0, 0, Math.PI * 2); ctx.fill();
+  // Water.
+  ctx.fillStyle = team === "blue" ? "#2b6fd0" : "#c23b36";
+  ctx.beginPath(); ctx.ellipse(f.x, f.y, 82, 64, 0, 0, Math.PI * 2); ctx.fill();
+  // Ripples.
+  ctx.strokeStyle = "rgba(255,255,255,0.25)";
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    const rr = ((time * 40 + i * 30) % 80);
+    ctx.globalAlpha = 1 - rr / 80;
+    ctx.beginPath(); ctx.ellipse(f.x, f.y, rr, rr * 0.78, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // Center pillar glow.
+  ctx.fillStyle = color;
+  ctx.shadowColor = color; ctx.shadowBlur = 20;
+  ctx.beginPath(); ctx.ellipse(f.x, f.y - 6, 14, 12, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
 }
 
 export function drawScene(
@@ -321,47 +446,77 @@ function drawZone(ctx: CanvasRenderingContext2D, z: ZoneSnap, time: number) {
 function drawNexus(ctx: CanvasRenderingContext2D, n: StructSnap, time: number) {
   if (!n.alive) return;
   const color = TEAM_COLOR[n.team];
+  const bob = Math.sin(time * 1.5) * 8;
+  // Ground shadow.
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.beginPath(); ctx.ellipse(n.x, n.y + 30, 60, 26, 0, 0, Math.PI * 2); ctx.fill();
+  // Base dais.
+  ctx.fillStyle = "#232833";
+  ctx.beginPath(); ctx.ellipse(n.x, n.y + 24, 56, 24, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = team3(color, 0.25);
+  ctx.beginPath(); ctx.ellipse(n.x, n.y + 20, 44, 18, 0, 0, Math.PI * 2); ctx.fill();
+  // Floating rotating crystal.
   ctx.save();
-  ctx.translate(n.x, n.y);
-  // Rotating crystal.
-  const r = 46;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 30;
-  ctx.fillStyle = color;
-  ctx.rotate(time * 0.6);
+  ctx.translate(n.x, n.y - 20 + bob);
+  ctx.shadowColor = color; ctx.shadowBlur = 34;
+  const r = 44;
+  ctx.rotate(time * 0.5);
+  const grad = ctx.createLinearGradient(0, -r, 0, r);
+  grad.addColorStop(0, "#ffffff");
+  grad.addColorStop(0.4, color);
+  grad.addColorStop(1, team3(color, 0.6));
+  ctx.fillStyle = grad;
   ctx.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    const rr = i % 2 === 0 ? r : r * 0.6;
-    ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
-  }
-  ctx.closePath();
-  ctx.fill();
+  ctx.moveTo(0, -r); ctx.lineTo(r * 0.7, -r * 0.1); ctx.lineTo(r * 0.45, r); ctx.lineTo(-r * 0.45, r); ctx.lineTo(-r * 0.7, -r * 0.1);
+  ctx.closePath(); ctx.fill();
   ctx.restore();
-  drawStructBar(ctx, n, 70, "NEXUS");
+  drawStructBar(ctx, n, 78, "NEXUS");
+}
+
+function team3(hex: string, amt: number): string {
+  // Darken a hex color by amt (0..1).
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.round(((n >> 16) & 255) * (1 - amt));
+  const g = Math.round(((n >> 8) & 255) * (1 - amt));
+  const b = Math.round((n & 255) * (1 - amt));
+  return `rgb(${r},${g},${b})`;
 }
 
 function drawTurret(ctx: CanvasRenderingContext2D, t: StructSnap) {
   if (!t.alive) return;
   const color = TEAM_COLOR[t.team];
-  ctx.save();
-  ctx.translate(t.x, t.y);
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 14;
-  ctx.fillStyle = "#1a2338";
+  const h = 66; // tower height
+  // Ground shadow.
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.beginPath(); ctx.ellipse(t.x, t.y + 14, 40, 18, 0, 0, Math.PI * 2); ctx.fill();
+  // Tapered cone body (trapezoid).
+  const topW = 20, botW = 38;
+  const topY = t.y - h, botY = t.y + 8;
+  const body = ctx.createLinearGradient(t.x - botW, 0, t.x + botW, 0);
+  body.addColorStop(0, "#171b26");
+  body.addColorStop(0.5, "#2a3040");
+  body.addColorStop(1, "#12151d");
+  ctx.fillStyle = body;
   ctx.beginPath();
-  ctx.arc(0, 0, 38, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 5;
-  ctx.stroke();
-  ctx.shadowBlur = 0;
+  ctx.moveTo(t.x - topW, topY); ctx.lineTo(t.x + topW, topY);
+  ctx.lineTo(t.x + botW, botY); ctx.lineTo(t.x - botW, botY);
+  ctx.closePath(); ctx.fill();
+  // Stone rings.
+  ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 2;
+  for (let i = 1; i <= 3; i++) {
+    const yy = topY + ((botY - topY) * i) / 4;
+    const ww = topW + ((botW - topW) * i) / 4;
+    ctx.beginPath(); ctx.moveTo(t.x - ww, yy); ctx.lineTo(t.x + ww, yy); ctx.stroke();
+  }
+  // Glowing crystal at top.
+  ctx.save();
+  ctx.shadowColor = color; ctx.shadowBlur = 22;
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.arc(0, 0, 16, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.moveTo(t.x, topY - 20); ctx.lineTo(t.x + 12, topY - 4); ctx.lineTo(t.x, topY + 10); ctx.lineTo(t.x - 12, topY - 4);
+  ctx.closePath(); ctx.fill();
   ctx.restore();
-  drawStructBar(ctx, t, 42, "");
+  drawStructBar(ctx, t, h + 14, "");
 }
 
 function drawStructBar(ctx: CanvasRenderingContext2D, s: StructSnap, r: number, label: string) {
@@ -379,10 +534,13 @@ function drawStructBar(ctx: CanvasRenderingContext2D, s: StructSnap, r: number, 
 
 function drawMinion(ctx: CanvasRenderingContext2D, m: MinionSnap) {
   const color = TEAM_COLOR[m.team];
+  const size = m.mt === "cannon" ? 15 : m.mt === "caster" ? 10 : 12;
+  // Ground shadow.
+  ctx.fillStyle = "rgba(0,0,0,0.28)";
+  ctx.beginPath(); ctx.ellipse(m.x, m.y + size * 0.7, size * 0.9, size * 0.4, 0, 0, Math.PI * 2); ctx.fill();
   ctx.save();
   ctx.translate(m.x, m.y);
   ctx.fillStyle = color;
-  const size = m.mt === "cannon" ? 15 : m.mt === "caster" ? 10 : 12;
   ctx.beginPath();
   if (m.mt === "caster") {
     ctx.arc(0, 0, size, 0, Math.PI * 2);
@@ -441,6 +599,12 @@ function drawChampion(ctx: CanvasRenderingContext2D, c: ChampSnap, isLocal: bool
 
   ctx.save();
   ctx.globalAlpha = stealth ? (c.team === localTeam ? 0.5 : 0.12) : 1;
+
+  // Ground shadow for depth.
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  ctx.beginPath();
+  ctx.ellipse(c.x, c.y + 20, 24, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
 
   // Range indicator for local champ.
   if (isLocal) {
