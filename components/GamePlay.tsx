@@ -35,6 +35,7 @@ export default function GamePlay({
   const isTouchRef = useRef(false);
   const touchRef = useRef<{ moving: boolean; pinchDist: number; pinchZoom: number }>({ moving: false, pinchDist: 0, pinchZoom: 0.62 });
   const joyRef = useRef<{ active: boolean; dx: number; dy: number }>({ active: false, dx: 0, dy: 0 });
+  const attackJoyRef = useRef<{ active: boolean; dx: number; dy: number }>({ active: false, dx: 0, dy: 0 });
   const lastAutoBuyRef = useRef(0);
 
   useEffect(() => {
@@ -74,6 +75,23 @@ export default function GamePlay({
           const d = Math.hypot(joy.dx, joy.dy) || 1;
           p.move = { x: me.x + (joy.dx / d) * 110, y: me.y + (joy.dy / d) * 110 };
           p.attackTarget = null;
+        }
+      }
+
+      // Attack joystick (right side): attack the nearest enemy in the aimed direction.
+      const atk = attackJoyRef.current;
+      if (atk.active && (atk.dx !== 0 || atk.dy !== 0)) {
+        const snap = latestSnap();
+        const me = findLocalChamp(snap);
+        if (me && me.alive) {
+          const angle = Math.atan2(atk.dy, atk.dx);
+          const target = nearestEnemyInDir(snap, me.x, me.y, angle, me.team);
+          if (target != null) {
+            p.attackTarget = target;
+          } else {
+            p.attackMove = { x: me.x + Math.cos(angle) * 260, y: me.y + Math.sin(angle) * 260 };
+            p.attackTarget = null;
+          }
         }
       }
 
@@ -126,6 +144,31 @@ export default function GamePlay({
   const findLocalChamp = (snap: Snapshot | null): ChampSnap | null => {
     if (!snap) return null;
     return snap.champs.find((c) => c.owner === localIdRef.current) || null;
+  };
+
+  const nearestEnemyInDir = (snap: Snapshot | null, x: number, y: number, angle: number, myTeam: Team, maxAngle = Math.PI / 3) => {
+    if (!snap) return null;
+    let best: number | null = null;
+    let bd = Infinity;
+    const consider = (id: number, ex: number, ey: number, alive: boolean, team: Team) => {
+      if (!alive || team === myTeam) return;
+      const dx = ex - x;
+      const dy = ey - y;
+      const d = Math.hypot(dx, dy);
+      if (d > bd) return;
+      let a = Math.atan2(dy, dx) - angle;
+      while (a > Math.PI) a -= Math.PI * 2;
+      while (a < -Math.PI) a += Math.PI * 2;
+      if (Math.abs(a) <= maxAngle) {
+        bd = d;
+        best = id;
+      }
+    };
+    for (const c of snap.champs) consider(c.id, c.x, c.y, c.alive, c.team);
+    for (const m of snap.minions) consider(m.id, m.x, m.y, true, m.team);
+    for (const t of snap.turrets) consider(t.id, t.x, t.y, t.alive, t.team);
+    for (const n of snap.nexuses) consider(n.id, n.x, n.y, n.alive, n.team);
+    return best;
   };
 
   const nearestEnemyToCursor = (worldX: number, worldY: number, myTeam: Team, radius = 900) => {
@@ -385,6 +428,11 @@ export default function GamePlay({
     joyRef.current.dx = dx;
     joyRef.current.dy = dy;
   };
+  const onAttackJoyMove = (dx: number, dy: number) => {
+    attackJoyRef.current.active = dx !== 0 || dy !== 0;
+    attackJoyRef.current.dx = dx;
+    attackJoyRef.current.dy = dy;
+  };
 
   // One-tap ability cast: auto-aim at the nearest enemy (tablet-friendly).
   const castAuto = (slot: number) => {
@@ -436,12 +484,21 @@ export default function GamePlay({
         setShowHelp={setShowHelp}
       />
       <Joystick onMove={onJoyMove} />
+      <Joystick onMove={onAttackJoyMove} attack />
     </div>
   );
 }
 
-// Virtual joystick control (Brawl Stars style): drag the stick to move.
-function Joystick({ onMove, size = 150 }: { onMove: (dx: number, dy: number) => void; size?: number }) {
+// Virtual joystick control (Brawl Stars style): drag the stick to move/attack.
+function Joystick({
+  onMove,
+  size = 150,
+  attack = false,
+}: {
+  onMove: (dx: number, dy: number) => void;
+  size?: number;
+  attack?: boolean;
+}) {
   const baseRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(false);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
@@ -489,13 +546,14 @@ function Joystick({ onMove, size = 150 }: { onMove: (dx: number, dy: number) => 
       onPointerCancel={release}
       style={{
         position: "absolute",
-        left: 22,
+        right: attack ? 22 : undefined,
+        left: attack ? undefined : 22,
         bottom: 22,
         width: size,
         height: size,
         borderRadius: "50%",
-        background: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(255,255,255,0.14)",
+        background: attack ? "rgba(160,73,71,0.08)" : "rgba(255,255,255,0.05)",
+        border: attack ? "1px solid rgba(160,73,71,0.35)" : "1px solid rgba(255,255,255,0.14)",
         boxShadow: "inset 0 0 34px rgba(0,0,0,0.55)",
         touchAction: "none",
         cursor: "pointer",
@@ -511,15 +569,25 @@ function Joystick({ onMove, size = 150 }: { onMove: (dx: number, dy: number) => 
           width: knobR,
           height: knobR,
           borderRadius: "50%",
-          background: active ? "rgba(199,205,219,0.9)" : "rgba(199,205,219,0.35)",
+          background: attack
+            ? active
+              ? "rgba(160,73,71,0.95)"
+              : "rgba(160,73,71,0.4)"
+            : active
+              ? "rgba(199,205,219,0.9)"
+              : "rgba(199,205,219,0.35)",
           boxShadow: "0 4px 12px rgba(0,0,0,0.55)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          fontSize: 20,
+          fontWeight: 900,
+          color: attack ? "#1a0e0d" : "#0d1118",
           transition: "background 0.12s ease",
         }}
-      />
-
+      >
+        {active ? "◉" : attack ? "A" : "✛"}
+      </div>
     </div>
   );
 }

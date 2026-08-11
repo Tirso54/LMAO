@@ -349,4 +349,4 @@ const itemSlot: React.CSSProperties = { width: 34, height: 34, borderRadius: 6, 
 const miniBtn: React.CSSProperties = { padding: "6px 10px", fontSize: 12 };
 const pointsHint: React.CSSProperties = { position: "absolute", bottom: 92, left: "50%", transform: "translateX(-50%)", background: "var(--green)", color: "#fff", padding: "4px 14px", borderRadius: 20, fontSize: 13, fontWeight: 700 };
 const fullOverlay: React.CSSProperties = { position: "absolute", inset: 0, background: "rgba(3,6,14,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60 };
-const helpBtn: React.CSSProperties = { position: "absolute", bottom: 10, right: 10, width: 36, height: 36, borderRadius: "50%", background: "var(--panel)", border: "1px solid var(--border)", color: "var(--ink)", fontWeight: 900, fontSize: 18, zIndex: 61 };
+const helpBtn: React.CSSProperties = { position: "absolute", top: 10, right: 10, width: 36, height: 36, borderRadius: "50%", background: "var(--panel)", border: "1px solid var(--border)", color: "var(--ink)", fontWeight: 900, fontSize: 18, zIndex: 61 };
