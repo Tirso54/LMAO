@@ -3,44 +3,91 @@
 import { useRouter } from "next/navigation";
 import { CHAMPION_LIST } from "@/game/engine/champions";
 
+/** Small filled/empty star meter (difficulty 1..3). */
+function Stars({ value, max = 3 }: { value: number; max?: number }) {
+  return (
+    <span className="stars" aria-label={`${value} de ${max}`}>
+      {Array.from({ length: max }).map((_, i) => (
+        <span key={i} className={i < value ? "" : "off"}>
+          ★
+        </span>
+      ))}
+    </span>
+  );
+}
+
+const ROLE_ES: Record<string, string> = {
+  Fighter: "Luchador",
+  Marksman: "Tirador",
+  Mage: "Mago",
+  Tank: "Tanque",
+  Assassin: "Asesino",
+  Support: "Support",
+};
+
 export default function LandingPage() {
   const router = useRouter();
   const go = (mode: string) => router.push(`/play?mode=${mode}`);
 
   return (
     <div className="landing">
+      {/* -------------------------------------------------- Nav */}
       <header className="nav">
-        <div className="logo">
-          LMAO <small>LEAGUE OF MØØBAS</small>
+        <div className="brand">
+          <span className="mark wordmark">LMAO</span>
+          <span className="tag-chip">EDICIÓN OFF-BRAND</span>
         </div>
-        <div className="nav-links">
-          <a href="#como-se-juega">Cómo se juega</a>
+        <nav className="nav-links">
           <a href="#campeones">Campeones</a>
-          <button className="btn primary play-cta" onClick={() => go("solo")}>
-            Jugar
+          <a href="#como-funciona">Cómo se juega</a>
+          <a href="#notas">Notas del parche</a>
+          <button className="btn primary" onClick={() => go("solo")}>
+            Jugar gratis
           </button>
-        </div>
+        </nav>
       </header>
 
+      {/* -------------------------------------------------- Hero */}
       <section className="hero">
-        <div className="badge-row">
-          <span className="badge">Gratis</span>
-          <span className="badge">Sin instalación</span>
-          <span className="badge">Multijugador online</span>
-          <span className="badge">Mapa abierto</span>
+        <div className="feature-pills">
+          <span className="pill">Gratis</span>
+          <span className="pill">Sin instalación</span>
+          <span className="pill">Multijugador online</span>
+          <span className="pill plain">Campo abierto</span>
         </div>
-        <h1>
-          LMAO — <span className="accent">League of Mobass</span>
-        </h1>
+
+        <h1 className="wordmark">LMAO</h1>
+        <div className="subtitle">League of Møøbas</div>
+        <div className="from">
+          El MOBA <b>legalmente distinto</b> — hecho en un navegador, no en un estudio
+        </div>
+
         <p className="tagline">
-          Un MOBA para jugar directo en el navegador, ahora en un <b>mapa mucho más abierto</b>. Elige a tu
-          campeón, sube de nivel con tus minions, flanquea por la hierba, derriba torretas y destruye el{" "}
-          <b>Nexo</b> enemigo. Crea una sala y elige cuántos bots quieres en tu equipo y en el rival.
+          Un MOBA <b>cinematográfico</b> que corre entero en tu navegador. Elige a tu campeón,
+          sube de nivel con tus minions, flanquea por la <span className="accent">hierba</span>,
+          derriba torretas y destruye el <b>Nexo</b> enemigo. Crea una sala y decide cuántos
+          bots quieres en tu equipo… y cuántos sufrirán en el rival.
         </p>
 
-        {/* Top-down preview of the new open arena. */}
+        <div className="cta-row">
+          <button className="btn primary lg" onClick={() => go("solo")}>
+            ▷ Jugar ahora
+          </button>
+          <button className="btn gold-outline lg" onClick={() => go("host")}>
+            Crear sala
+          </button>
+          <button className="btn ghost lg" onClick={() => go("join")}>
+            Unirse con código
+          </button>
+        </div>
+        <div className="microcopy">
+          Sin descargas · Sin cuentas · Sin reembolsos (no hay nada que reembolsar)
+        </div>
+
+        {/* Animated top-down preview of the arena */}
         <div className="arena-preview" aria-hidden="true">
           <div className="ap-field">
+            <div className="ap-grid" />
             <div className="ap-base blue">
               <span className="ap-nexus" />
             </div>
@@ -58,101 +105,200 @@ export default function LandingPage() {
             <span className="ap-champ red" style={{ top: "38%", left: "58%" }} />
           </div>
         </div>
-
-        <div className="mode-row">
-          <button className="btn primary play-cta" onClick={() => go("solo")}>
-            Jugar ahora
-          </button>
-          <button className="btn blue play-cta" onClick={() => go("host")}>
-            Crear sala
-          </button>
-          <button className="btn ghost play-cta" onClick={() => go("join")}>
-            Unirse con código
-          </button>
-        </div>
       </section>
 
-      <section className="section" id="como-se-juega">
-        <h2 className="section-title">¿De qué trata el juego?</h2>
-        <p className="section-sub">
-          Cada partida es una batalla en una sola calle (estilo ARAM). Ambos equipos reciben oleadas de
-          minions; los eliminas para conseguir oro y experiencia, subes de nivel tus habilidades, compras
-          objetos y empujas hasta el corazón de la base enemiga. Gana el primer equipo que destruya el
-          Nexo rival.
-        </p>
-        <div className="about-grid">
-          <div className="about-card">
-            <div className="ic">C</div>
-            <h3>Controles de mando</h3>
+      {/* -------------------------------------------------- Battleground */}
+      <section className="section" id="campo">
+        <div className="section-head">
+          <p className="eyebrow">Un solo campo, cero piedad</p>
+          <h2 className="section-title">El Barranco del Alboroto</h2>
+          <p className="section-sub">
+            Una calzada central de minions rodeada de hierba abierta para flanquear, campamentos
+            de jungla que pican, y una cadena de torretas que te protege hasta el corazón de la
+            base. Ganáis quien reviente el Nexo enemigo primero.
+          </p>
+          <div className="rule" />
+        </div>
+
+        <div className="map-grid" style={{ gridTemplateColumns: "1fr" }}>
+          <div className="map-card gold">
+            <span className="flag pill">El original</span>
+            <div className="map-icon">🗺️</div>
+            <h3>El Barranco del Alboroto</h3>
+            <div className="meta">1 calzada · jungla · 1–7 por equipo</div>
             <p>
-              En el juego tienes un joystick virtual estilo Brawl Stars en la esquina izquierda para moverte
-              y botones de habilidad en la parte inferior. En PC también funcionan el ratón y el teclado.
+              Empuja tu calle con las oleadas, escóndete en la hierba para tender emboscadas,
+              limpia los campamentos y derriba las tres torretas de cada base antes de partir el
+              Nexo en dos. Bots opcionales para rellenar los huecos: pueden ir despistados o con
+              demasiada cafeína.
             </p>
-          </div>
-          <div className="about-card">
-            <div className="ic">B</div>
-            <h3>Juega solo o con amigos</h3>
-            <p>
-              Pulsa <b>Jugar</b> para una partida rápida contra bots con un campeón asignado, o crea una sala
-              y comparte el código para jugar con quien quieras.
-            </p>
-          </div>
-          <div className="about-card">
-            <div className="ic">F</div>
-            <h3>Objetivo</h3>
-            <p>
-              Empuja tu calle con los minions, derriba las torretas enemigas y destruye su Nexo antes de que
-              ellos destruyan el tuyo. Sin cuentas ni descargas.
-            </p>
+            <div className="tags">
+              <span className="pill plain">Hierba para flanquear</span>
+              <span className="pill plain">Campamentos de jungla</span>
+              <span className="pill plain">Torretas + Nexo</span>
+              <span className="pill plain">Bots regulables</span>
+            </div>
           </div>
         </div>
       </section>
 
+      {/* -------------------------------------------------- Champions */}
       <section className="section" id="campeones">
-        <h2 className="section-title">Campeones</h2>
-        <p className="section-sub">
-          Al pulsar <b>Jugar</b> se te asigna un campeón automáticamente con sus habilidades listas. Estos
-          son los 8 personajes disponibles:
-        </p>
+        <div className="section-head">
+          <p className="eyebrow">{CHAMPION_LIST.length} campeones legalmente distintos</p>
+          <h2 className="section-title">Elige tu bootleg</h2>
+          <p className="section-sub">
+            Cada uno con pasiva y habilidades Q/W/E/R propias: skillshots, dashes, ganchos, ultis
+            globales, ejecuciones y trampas. Al pulsar <b>Jugar</b> eliges el tuyo en la selección
+            de campeón.
+          </p>
+          <div className="rule" />
+        </div>
+
         <div className="champ-grid">
           {CHAMPION_LIST.map((c) => (
-            <div className="champ-tile" key={c.id} title={c.blurb}>
-              <div className="glyph">{c.glyph}</div>
-              <div className="name">{c.name}</div>
-              <div className="role">{c.role}</div>
+            <div
+              className="champ-card"
+              key={c.id}
+              style={{ ["--card-color" as any]: `${c.color}66` }}
+            >
+              <div className="top">
+                <div
+                  className="champ-portrait"
+                  style={{ background: `linear-gradient(150deg, ${c.color}, ${c.color}99)` }}
+                >
+                  {c.glyph}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div className="name">{c.name}</div>
+                  <div className="title">{c.title}</div>
+                </div>
+              </div>
+              <p className="blurb">{c.blurb}</p>
+              <div className="role-row">
+                <span className="role">{ROLE_ES[c.role] || c.role}</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="pill plain" style={{ fontSize: 11, padding: "3px 9px" }}>
+                    ★ {c.rating.toFixed(1)}
+                  </span>
+                  <Stars value={c.difficulty} />
+                </span>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="section">
-        <h2 className="section-title">Cómo se juega</h2>
+      {/* -------------------------------------------------- How it works */}
+      <section className="section" id="como-funciona">
+        <div className="section-head">
+          <p className="eyebrow">Cómo funciona</p>
+          <h2 className="section-title">Es básicamente el juego real, con un 97% de descuento</h2>
+          <p className="section-sub">
+            Cada partida es una batalla por una calle. Ambos equipos reciben oleadas de minions;
+            los rematas para conseguir oro y experiencia, subes tus habilidades, compras objetos y
+            empujas hasta el Nexo rival.
+          </p>
+          <div className="rule" />
+        </div>
+
+        <div className="feature-grid" style={{ marginBottom: 16 }}>
+          <div className="feature-card">
+            <div className="fic">◑</div>
+            <h3>Controles de mando</h3>
+            <p>
+              Joystick virtual estilo Brawl Stars a la izquierda para moverte y botones de
+              habilidad abajo. En PC también van <b>ratón y teclado</b>.
+            </p>
+          </div>
+          <div className="feature-card">
+            <div className="fic">⚔</div>
+            <h3>Solo o con amigos</h3>
+            <p>
+              Pulsa <b>Jugar</b> para una partida rápida contra bots, o crea una sala y comparte el
+              código de 5 letras. Los huecos vacíos se rellenan con bots.
+            </p>
+          </div>
+          <div className="feature-card">
+            <div className="fic">◎</div>
+            <h3>El objetivo</h3>
+            <p>
+              Empuja con tus minions, tira las torretas enemigas y destruye su <b>Nexo</b> antes de
+              que ellos revienten el tuyo. Sin cuentas, sin descargas.
+            </p>
+          </div>
+        </div>
+
         <div className="howto-list">
           <div className="howto-row">
             <span className="key">Mover</span>
-            <p>Joystick táctil (izquierda) o clic derecho en PC. Ataca a los enemigos acercándote o tocándolos.</p>
+            <p>Joystick táctil (izquierda) o <b>clic derecho</b> en PC. Ataca acercándote.</p>
           </div>
           <div className="howto-row">
-            <span className="key">Habilidades</span>
-            <p>Q, W, E y R lanzan tus habilidades. En táctil, toca el botón y se apuntan al enemigo más cercano.</p>
+            <span className="key">Q W E R</span>
+            <p>Lanza tus habilidades. En táctil apuntan al enemigo más cercano.</p>
           </div>
           <div className="howto-row">
-            <span className="key">Subir nivel</span>
-            <p>Consigue experiencia con minions y bajas. Pulsa el <b>+</b> sobre una habilidad (o Ctrl+Q/W/E/R) para mejorarla.</p>
+            <span className="key">Subir</span>
+            <p>Gana XP con minions y bajas. Pulsa <b>＋</b> (o Ctrl+Q/W/E/R) para mejorar.</p>
           </div>
           <div className="howto-row">
             <span className="key">Ganar</span>
-            <p>Destruye las torretas enemigas y luego su Nexo. Tu equipo comparte la victoria.</p>
+            <p>Torretas primero, luego el <b>Nexo</b>. Tu equipo comparte la victoria.</p>
           </div>
         </div>
       </section>
 
+      {/* -------------------------------------------------- Patch notes */}
+      <section className="section tight" id="notas">
+        <div className="patch">
+          <div className="ver">v1.0</div>
+          <div className="body">
+            <h3>Notas del parche — «Todo a un euro»</h3>
+            <ul>
+              <li><b>Campo más abierto:</b> más hierba y campamentos de jungla para flanquear.</li>
+              <li><b>Respawn de 5s</b> y efectos de disparo más visibles.</li>
+              <li><b>Selección de campeón</b> al entrar, con campeón asignado a cada bot.</li>
+              <li>Se equilibró a Garón. Sigue girando. No sabemos cómo pararlo.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* -------------------------------------------------- CTA */}
+      <section className="section tight">
+        <div className="cta-banner">
+          <h2>¿Listo para perder con estilo?</h2>
+          <p>Sin instalar nada. Sin crear cuentas. Solo tú, tus bots y un Nexo que reventar.</p>
+          <div className="cta-row">
+            <button className="btn primary lg" onClick={() => go("solo")}>
+              ▷ Jugar ahora
+            </button>
+            <button className="btn gold-outline lg" onClick={() => go("host")}>
+              Crear sala
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* -------------------------------------------------- Footer */}
       <footer className="footer">
-        LMAO — League of Mobass es un juego de parodia, sin afiliación ni respaldo de ningún juego real.
-        Cualquier parecido con campeones vivos o muertos es pura coincidencia. Construido con Next.js,
-        React y WebRTC (PeerJS). Sin tiendas, sin cuentas, sin necesidad de instalar nada.
-        <br />
-        © {new Date().getFullYear()} LMAO. Juega gratis desde tu navegador.
+        <div className="footer-inner">
+          <div>
+            <div className="brand-mark">LMAO</div>
+            <div style={{ color: "var(--ink-faint)", fontSize: 12, marginTop: 6 }}>
+              League of Møøbas · Edición Off-brand
+            </div>
+          </div>
+          <p className="fine">
+            LMAO — League of Møøbas es un juego de parodia, sin afiliación ni respaldo de ningún
+            juego real. Cualquier parecido con campeones vivos o muertos es pura coincidencia que
+            negaremos ante un juez. Construido con Next.js, React y WebRTC (PeerJS). Sin tiendas,
+            sin cuentas, sin necesidad de instalar nada.
+            <br />
+            <br />© {new Date().getFullYear()} LMAO. Juega gratis desde tu navegador.
+          </p>
+        </div>
       </footer>
     </div>
   );

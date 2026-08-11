@@ -7,8 +7,9 @@ const GameShell = dynamic(() => import("@/components/GameShell"), {
   ssr: false,
   loading: () => (
     <div className="center">
+      <div className="load-mark wordmark">LMAO</div>
       <div className="spinner" />
-      <div style={{ color: "var(--ink-dim)" }}>Unboxing the bootleg…</div>
+      <div style={{ color: "var(--ink-dim)" }}>Desempaquetando el bootleg…</div>
     </div>
   ),
 });

@@ -1,10 +1,37 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GameSession } from "@/game/net/session";
 import { LobbyState } from "@/game/net/protocol";
 import { Team, GameConfig } from "@/game/engine/types";
 import { CHAMPION_LIST, CHAMPIONS } from "@/game/engine/champions";
+
+const ROLE_ES: Record<string, string> = {
+  Fighter: "Luchador",
+  Marksman: "Tirador",
+  Mage: "Mago",
+  Tank: "Tanque",
+  Assassin: "Asesino",
+  Support: "Support",
+};
+
+const DIFFS: { v: GameConfig["difficulty"]; label: string }[] = [
+  { v: "casual", label: "Relajado" },
+  { v: "normal", label: "Normal" },
+  { v: "savage", label: "Sudoroso" },
+];
+
+function Stars({ value, max = 3 }: { value: number; max?: number }) {
+  return (
+    <span className="stars">
+      {Array.from({ length: max }).map((_, i) => (
+        <span key={i} className={i < value ? "" : "off"}>
+          ★
+        </span>
+      ))}
+    </span>
+  );
+}
 
 export default function Lobby({
   session,
@@ -46,8 +73,6 @@ export default function Lobby({
     return arr.slice(0, Math.max(size, humans.length));
   };
 
-  const shareLink = typeof window !== "undefined" ? `${window.location.origin}/play?mode=join` : "";
-
   const copyCode = async () => {
     try {
       await navigator.clipboard.writeText(lobby.roomCode);
@@ -57,86 +82,212 @@ export default function Lobby({
   };
 
   const detailDef = CHAMPIONS[detail];
+  const myName = mySlot?.name || "Invocador";
 
   return (
-    <div className="center" style={{ alignItems: "stretch", padding: 0, minHeight: "100vh", justifyContent: "flex-start" }}>
-      <div style={{ padding: "14px 20px", background: "linear-gradient(90deg, #16202e, #101722)", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", borderBottom: "1px solid var(--border)" }}>
-        <div className="logo" style={{ fontSize: 22 }}>
-          LMAO — Mobass
-        </div>
-        {session.role !== "solo" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ color: "var(--ink)", fontWeight: 700 }}>Código de sala:</span>
-            <button onClick={copyCode} className="flash" style={{ fontSize: 24, letterSpacing: 4, cursor: "pointer" }}>
-              {lobby.roomCode} {copied ? "Copied!" : "Copy"}
-            </button>
-            <span style={{ color: "var(--ink-dim)", fontSize: 12 }}>
-              Tus amigos entran con <b>Unirse con código</b> y escriben esto.
-            </span>
+    <div className="lobby">
+      {/* -------------------------------------------------- Top bar */}
+      <div className="lobby-top">
+        <span className="mark wordmark">LMAO</span>
+        <div>
+          <div className="cs-label">Selección de campeón</div>
+          <div style={{ fontSize: 13, color: "var(--ink-2)" }}>
+            🗺️ El Barranco del Alboroto · 1–7 por equipo
           </div>
-        )}
-        {session.role === "solo" && <span style={{ color: "var(--ink)", fontWeight: 700 }}>Práctica contra bots</span>}
-        <div style={{ marginLeft: "auto" }}>
-          <button className="btn ghost" style={{ padding: "8px 14px" }} onClick={onLeave}>
-            Salir
+        </div>
+
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, color: "var(--ink-dim)" }}>
+            Juegas como <b style={{ color: "var(--ink)" }}>{myName}</b>
+          </span>
+          {session.role !== "solo" && (
+            <button className="room-chip" onClick={copyCode} title="Copiar código">
+              {lobby.roomCode}
+              <span className="copy">{copied ? "¡Copiado!" : "Copiar"}</span>
+            </button>
+          )}
+          {session.role === "solo" && <span className="pill plain">Práctica contra bots</span>}
+          <button className="btn ghost" style={{ padding: "8px 16px" }} onClick={onLeave}>
+            ← Salir
           </button>
         </div>
       </div>
 
-      {notice && (
-        <div style={{ background: "#111", color: "var(--brand-yellow)", padding: "8px 20px", fontSize: 13 }}>{notice}</div>
-      )}
+      {notice && <div className="lobby-notice">{notice}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 16, padding: 16, alignItems: "start" }} className="lobby-grid">
-        {/* Teams */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <TeamPanel team="blue" slots={teamSlots("blue")} myId={myId} canJoin={isHost || session.role === "client"} onJoinTeam={() => session.setTeam("blue")} />
-          <TeamPanel team="red" slots={teamSlots("red")} myId={myId} canJoin={isHost || session.role === "client"} onJoinTeam={() => session.setTeam("red")} />
+      {/* -------------------------------------------------- Body */}
+      <div className="lobby-grid">
+        {/* Left column: blue team + host settings */}
+        <div>
+          <TeamPanel
+            team="blue"
+            slots={teamSlots("blue")}
+            target={targetFor("blue")}
+            myId={myId}
+            canJoin={isHost || session.role === "client"}
+            onJoinTeam={() => session.setTeam("blue")}
+          />
 
           {isHost && (
-            <div style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 14, padding: 14 }}>
-              <div style={{ fontWeight: 800, marginBottom: 10 }}>Ajustes de la sala (Host)</div>
-              <div className="field" style={{ marginBottom: 10 }}>
-                <label>Tu equipo: <b>{lobby.config.teamSize}</b> jugadores</label>
-                <input type="range" min={1} max={5} value={lobby.config.teamSize} style={{ width: "100%" }} onChange={(e) => session.setConfig?.({ teamSize: Number(e.target.value) })} />
+            <div className="panel">
+              <div className="panel-title">Ajustes de la sala</div>
+
+              <div className="field" style={{ marginBottom: 12 }}>
+                <label>Tu equipo: <b style={{ color: "var(--blue)" }}>{lobby.config.teamSize}</b> jugadores</label>
+                <input type="range" min={1} max={5} value={lobby.config.teamSize} onChange={(e) => session.setConfig?.({ teamSize: Number(e.target.value) })} />
               </div>
-              <div className="field" style={{ marginBottom: 10 }}>
-                <label>Bots enemigos: <b>{lobby.config.enemyBots}</b></label>
-                <input type="range" min={1} max={5} value={lobby.config.enemyBots} style={{ width: "100%" }} onChange={(e) => session.setConfig?.({ enemyBots: Number(e.target.value) })} />
+
+              <div className="field" style={{ marginBottom: 12 }}>
+                <label>Bots enemigos: <b style={{ color: "var(--red)" }}>{lobby.config.enemyBots}</b></label>
+                <input type="range" min={1} max={5} value={lobby.config.enemyBots} onChange={(e) => session.setConfig?.({ enemyBots: Number(e.target.value) })} />
               </div>
-              <div className="field" style={{ marginBottom: 10 }}>
-                <label>Bot Difficulty</label>
-                <select value={lobby.config.difficulty} onChange={(e) => session.setConfig?.({ difficulty: e.target.value as any })}>
-                  <option value="casual">Casual (bots blindfolded)</option>
-                  <option value="normal">Normal</option>
-                  <option value="savage">Savage (bots caffeinated)</option>
-                </select>
+
+              <div className="field" style={{ marginBottom: 12 }}>
+                <label>Dificultad de los bots</label>
+                <div className="segmented">
+                  {DIFFS.map((d) => (
+                    <button
+                      key={d.v}
+                      type="button"
+                      className={lobby.config.difficulty === d.v ? "active" : ""}
+                      onClick={() => session.setConfig?.({ difficulty: d.v })}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
+
+              <label className="check" style={{ marginBottom: 8 }}>
                 <input type="checkbox" checked={lobby.config.botFill} onChange={(e) => session.setConfig?.({ botFill: e.target.checked })} />
-                Fill empty seats with AI bots
+                Rellenar huecos vacíos con bots
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, marginTop: 6 }}>
+              <label className="check">
                 <input type="checkbox" checked={lobby.config.minionsEnabled} onChange={(e) => session.setConfig?.({ minionsEnabled: e.target.checked })} />
-                Spawn minion waves
+                Oleadas de minions
               </label>
             </div>
           )}
+        </div>
 
-          {/* Chat */}
+        {/* Center column: champion select */}
+        <div className="cs-panel">
+          <div className="cs-head">
+            <p className="eyebrow">Elige tu campeón bootleg</p>
+            <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>{CHAMPION_LIST.length} campeones</span>
+          </div>
+
+          <div className="cs-grid">
+            {CHAMPION_LIST.map((c) => {
+              const taken = takenChamps.has(c.id);
+              const mine = mySlot?.championId === c.id;
+              return (
+                <button
+                  key={c.id}
+                  disabled={taken}
+                  className={"cs-cell" + (mine ? " mine" : "")}
+                  style={mine ? ({ ["--cc" as any]: c.color }) : undefined}
+                  onMouseEnter={() => setDetail(c.id)}
+                  onFocus={() => setDetail(c.id)}
+                  onClick={() => {
+                    session.pickChamp(c.id);
+                    setDetail(c.id);
+                  }}
+                >
+                  <span
+                    className="glyph"
+                    style={{ background: `linear-gradient(150deg, ${c.color}, ${c.color}99)` }}
+                  >
+                    {c.glyph}
+                  </span>
+                  <span className="cn">{c.name}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Detail card */}
+          {detailDef && (
+            <div className="detail" style={{ ["--dc" as any]: `${detailDef.color}` }}>
+              <div className="d-top">
+                <div
+                  className="d-portrait"
+                  style={{ background: `linear-gradient(150deg, ${detailDef.color}, ${detailDef.color}99)` }}
+                >
+                  {detailDef.glyph}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div className="d-name" style={{ color: detailDef.color }}>{detailDef.name}</div>
+                  <div className="d-title">{detailDef.title}</div>
+                  <div className="d-meta">
+                    <span>{ROLE_ES[detailDef.role] || detailDef.role}</span>
+                    <span>·</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                      Dificultad <Stars value={detailDef.difficulty} />
+                    </span>
+                    <span className="pill plain" style={{ fontSize: 11, padding: "2px 8px" }}>★ {detailDef.rating.toFixed(1)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="d-blurb">{detailDef.blurb}</div>
+
+              <div className="ability-row">
+                <Ability slotKey="PAS" glyph={detailDef.passive.glyph} name={detailDef.passive.name} desc={detailDef.passive.desc} />
+                {detailDef.abilities.map((a, i) => (
+                  <Ability key={i} slotKey={["Q", "W", "E", "R"][i]} glyph={a.glyph} name={a.name} desc={a.desc} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Ready / start */}
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button
+              className={"btn block " + (mySlot?.ready ? "green" : "primary")}
+              onClick={() => session.setReady(!mySlot?.ready)}
+            >
+              {mySlot?.ready ? "✓ ¡Listo!" : "Marcar Listo"}
+            </button>
+            {isHost && (
+              <button className="btn teal block" onClick={() => session.start?.()}>
+                ▷ Empezar partida
+              </button>
+            )}
+          </div>
+          {!isHost && (
+            <div style={{ color: "var(--ink-dim)", fontSize: 12, marginTop: 10, textAlign: "center" }}>
+              Esperando a que el anfitrión empiece la partida…
+            </div>
+          )}
+        </div>
+
+        {/* Right column: red team + chat */}
+        <div>
+          <TeamPanel
+            team="red"
+            slots={teamSlots("red")}
+            target={targetFor("red")}
+            myId={myId}
+            canJoin={isHost || session.role === "client"}
+            onJoinTeam={() => session.setTeam("red")}
+          />
+
           {session.role !== "solo" && (
-            <div style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 14, padding: 12 }}>
-              <div style={{ fontWeight: 800, marginBottom: 6 }}>Trash Talk</div>
-              <div ref={chatRef} style={{ height: 120, overflowY: "auto", fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
-                {chat.length === 0 && <div style={{ color: "var(--ink-dim)" }}>Say hi (or GLHF, or something regrettable).</div>}
+            <div className="panel">
+              <div className="panel-title">Piques y saludos</div>
+              <div ref={chatRef} className="chat-log">
+                {chat.length === 0 && (
+                  <div style={{ color: "var(--ink-dim)" }}>Di hola (o GLHF, o algo de lo que arrepentirte).</div>
+                )}
                 {chat.map((c, i) => (
                   <div key={i}>
-                    <b style={{ color: "var(--brand-orange)" }}>{c.from}:</b> {c.text}
+                    <b className="from">{c.from}:</b> {c.text}
                   </div>
                 ))}
               </div>
               <form
-                style={{ display: "flex", gap: 6, marginTop: 6 }}
+                className="chat-form"
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (chatInput.trim()) {
@@ -145,133 +296,84 @@ export default function Lobby({
                   }
                 }}
               >
-                <input style={{ flex: 1, padding: "8px 10px", borderRadius: 8, background: "var(--bg-2)", border: "1px solid var(--border)", color: "var(--ink)" }} value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Type…" />
-                <button className="btn blue" style={{ padding: "8px 14px" }}>Send</button>
+                <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Escribe…" />
+                <button className="btn blue" style={{ padding: "9px 16px" }}>Enviar</button>
               </form>
             </div>
           )}
         </div>
-
-        {/* Champion select */}
-        <div style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 14, padding: 14 }}>
-          <div style={{ fontWeight: 800, marginBottom: 10, fontSize: 18 }}>Elige tu campeón</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))", gap: 8 }}>
-            {CHAMPION_LIST.map((c) => {
-              const taken = takenChamps.has(c.id);
-              const mine = mySlot?.championId === c.id;
-              return (
-                <button
-                  key={c.id}
-                  disabled={taken}
-                  onMouseEnter={() => setDetail(c.id)}
-                  onClick={() => {
-                    session.pickChamp(c.id);
-                    setDetail(c.id);
-                  }}
-                  style={{
-                    background: mine ? "linear-gradient(135deg, var(--brand-orange), var(--brand-red))" : "var(--bg-2)",
-                    border: mine ? "2px solid #fff" : "1px solid var(--border)",
-                    borderRadius: 10,
-                    padding: "10px 4px",
-                    color: taken ? "var(--ink-dim)" : "var(--ink)",
-                    opacity: taken ? 0.4 : 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 2,
-                  }}
-                >
-                  <span style={{ fontSize: 26 }}>{c.glyph}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700 }}>{c.name}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Detail card */}
-          {detailDef && (
-            <div style={{ marginTop: 14, background: "var(--bg-2)", borderRadius: 12, padding: 14, border: `1px solid ${detailDef.color}55` }}>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <div style={{ fontSize: 44 }}>{detailDef.glyph}</div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 20, color: detailDef.color }}>{detailDef.name}</div>
-                  <div style={{ color: "var(--ink-dim)", fontSize: 13 }}>{detailDef.title} · {detailDef.role} · Difficulty {"•".repeat(detailDef.difficulty)}</div>
-                </div>
-              </div>
-              <div style={{ fontSize: 13, margin: "10px 0", fontStyle: "italic", color: "var(--ink-dim)" }}>{detailDef.blurb}</div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <Ability glyph={detailDef.passive.glyph} name={detailDef.passive.name} desc={detailDef.passive.desc} tag="Passive" />
-                {detailDef.abilities.map((a, i) => (
-                  <Ability key={i} glyph={a.glyph} name={a.name} desc={a.desc} tag={["Q", "W", "E", "R"][i]} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Ready / Start */}
-          <div style={{ display: "flex", gap: 10, marginTop: 14, alignItems: "center" }}>
-            <button
-              className={"btn " + (mySlot?.ready ? "green" : "primary")}
-              style={{ flex: 1 }}
-              onClick={() => session.setReady(!mySlot?.ready)}
-            >
-              {mySlot?.ready ? "¡Listo!" : "Marcar Listo"}
-            </button>
-            {isHost && (
-              <button
-                className="btn green"
-                style={{ flex: 1 }}
-                onClick={() => session.start?.()}
-              >
-                Empezar partida
-              </button>
-            )}
-          </div>
-          {!isHost && <div style={{ color: "var(--ink-dim)", fontSize: 12, marginTop: 8, textAlign: "center" }}>Waiting for the host to start the match…</div>}
-        </div>
       </div>
-
-      <style>{`@media (max-width: 820px){ .lobby-grid{ grid-template-columns: 1fr !important; } }`}</style>
     </div>
   );
 }
 
-function TeamPanel({ team, slots, myId, canJoin, onJoinTeam }: { team: Team; slots: (any | null)[]; myId: string; canJoin: boolean; onJoinTeam: () => void }) {
-  const color = team === "blue" ? "var(--blue)" : "var(--red)";
+function TeamPanel({
+  team,
+  slots,
+  target,
+  myId,
+  canJoin,
+  onJoinTeam,
+}: {
+  team: Team;
+  slots: (any | null)[];
+  target: number;
+  myId: string;
+  canJoin: boolean;
+  onJoinTeam: () => void;
+}) {
+  const humans = slots.filter(Boolean).length;
   return (
-    <div style={{ background: "var(--panel)", border: `1px solid ${color}55`, borderRadius: 14, padding: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <div style={{ fontWeight: 800, color }}>{team === "blue" ? "Blue Bootlegs" : "Red Refunds"}</div>
+    <div className={"team-panel " + team}>
+      <div className="team-head">
+        <div className="team-name">
+          {team === "blue" ? "Equipo Azul" : "Equipo Rojo"}
+          <span className="team-count">{humans}/{target}</span>
+        </div>
         {canJoin && (
-          <button className="btn ghost" style={{ padding: "4px 10px", fontSize: 12 }} onClick={onJoinTeam}>
-            Join
+          <button className="btn ghost" style={{ padding: "5px 12px", fontSize: 12 }} onClick={onJoinTeam}>
+            Unirme
           </button>
         )}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {slots.map((s, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", background: "var(--bg-2)", borderRadius: 8, opacity: s ? 1 : 0.5 }}>
-            <span style={{ fontSize: 22 }}>{s ? CHAMPIONS[s.championId]?.glyph : "+"}</span>
-            <span style={{ flex: 1, fontWeight: s?.playerId === myId ? 800 : 500 }}>
-              {s ? s.name : "AI Bootleg Bot"} {s?.playerId === myId ? "(you)" : ""}
-            </span>
-            {s?.ready && <span style={{ color: "var(--green)", fontSize: 12, fontWeight: 800 }}>READY</span>}
-            {!s && <span style={{ color: "var(--ink-dim)", fontSize: 11 }}>bot</span>}
-          </div>
-        ))}
+      <div>
+        {slots.map((s, i) => {
+          const champ = s ? CHAMPIONS[s.championId] : null;
+          return (
+            <div key={i} className={"slot" + (s?.playerId === myId ? " you" : "")}>
+              {champ ? (
+                <span
+                  className="avatar"
+                  style={{ background: `linear-gradient(150deg, ${champ.color}, ${champ.color}99)` }}
+                >
+                  {champ.glyph}
+                </span>
+              ) : (
+                <span className="avatar empty">+</span>
+              )}
+              <span className={"who" + (s ? "" : " bot")}>
+                {s ? s.name : "Bot bootleg"}
+                {s?.playerId === myId ? " " : ""}
+                {s?.playerId === myId && <span className="tag-you">(tú)</span>}
+              </span>
+              {s?.ready && <span className="tag-ready">LISTO</span>}
+              {!s && <span className="tag-bot">bot</span>}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function Ability({ glyph, name, desc, tag }: { glyph: string; name: string; desc: string; tag: string }) {
+function Ability({ slotKey, glyph, name, desc }: { slotKey: string; glyph: string; name: string; desc: string }) {
   return (
-    <div title={desc} style={{ flex: "1 1 30%", minWidth: 120, background: "var(--panel-2)", borderRadius: 8, padding: 8 }}>
-      <div style={{ fontSize: 12, fontWeight: 800 }}>
-        <span style={{ background: "#000", borderRadius: 4, padding: "1px 5px", marginRight: 4 }}>{tag}</span>
-        {glyph} {name}
+    <div className="ability" title={desc}>
+      <div className="ab-head">
+        <span className="slot-key">{slotKey}</span>
+        <span>{name}</span>
       </div>
-      <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 3, lineHeight: 1.3 }}>{desc}</div>
+      <div className="ab-desc">{desc}</div>
     </div>
   );
 }
