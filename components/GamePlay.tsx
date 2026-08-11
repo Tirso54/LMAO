@@ -24,7 +24,7 @@ export default function GamePlay({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bufferRef = useRef<StampedSnapshot[]>([]);
   const fxRef = useRef(new FxSystem());
-  const camRef = useRef<Camera>({ x: WORLD.width / 2, y: WORLD.height / 2, zoom: 0.55 });
+  const camRef = useRef<Camera>({ x: WORLD.width / 2, y: WORLD.height / 2, zoom: 0.5 });
   const mouseRef = useRef({ sx: 0, sy: 0 });
   const pendingRef = useRef<PlayerInput>({ seq: 0, casts: [] });
   const seqRef = useRef(0);
@@ -225,7 +225,7 @@ export default function GamePlay({
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const cam = camRef.current;
-      cam.zoom = Math.max(0.35, Math.min(1.1, cam.zoom * (e.deltaY > 0 ? 0.92 : 1.08)));
+      cam.zoom = Math.max(0.22, Math.min(1.2, cam.zoom * (e.deltaY > 0 ? 0.92 : 1.08)));
     };
 
     const castSlot = (slot: number, levelMod: boolean) => {
@@ -310,7 +310,7 @@ export default function GamePlay({
         const d = Math.hypot(dx, dy);
         if (touchRef.current.pinchDist > 0) {
           const ratio = d / touchRef.current.pinchDist;
-          camRef.current.zoom = Math.max(0.32, Math.min(1.1, touchRef.current.pinchZoom * ratio));
+          camRef.current.zoom = Math.max(0.22, Math.min(1.2, touchRef.current.pinchZoom * ratio));
         }
       } else if (e.touches.length === 1 && touchRef.current.moving) {
         touchOrder(e.touches[0].clientX, e.touches[0].clientY);

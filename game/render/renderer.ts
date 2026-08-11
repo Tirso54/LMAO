@@ -127,15 +127,26 @@ export class FxSystem {
         this.particles.push({ x: e.x, y: e.y, vx: 0, vy: 0, life: 1.0, max: 1.0, color: e.color || "#ffd23f", size: 34, kind: "ping" });
         break;
       case "shot": {
-        // Muzzle flash at the origin plus a couple of sparks toward the target.
-        const ang = Math.atan2((e.y2 ?? e.y) - e.y, (e.x2 ?? e.x) - e.x);
-        const mx = e.x + Math.cos(ang) * 22;
-        const my = e.y + Math.sin(ang) * 22;
-        this.particles.push({ x: mx, y: my, vx: 0, vy: 0, life: 0.16, max: 0.16, color: e.color || "#fff", size: (e.radius || 7) + 3, kind: "flash" });
-        for (let i = 0; i < 3; i++) {
-          const a = ang + (Math.random() - 0.5) * 0.5;
-          const s = 260 + Math.random() * 180;
-          this.particles.push({ x: mx, y: my, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.18, max: 0.18, color: e.color || "#fff", size: 2.5, kind: "spark" });
+        // Big visible shot: bright beam + muzzle flash + sparks + recoil ring.
+        const tx = e.x2 ?? e.x;
+        const ty = e.y2 ?? e.y;
+        const ang = Math.atan2(ty - e.y, tx - e.x);
+        const mx = e.x + Math.cos(ang) * 24;
+        const my = e.y + Math.sin(ang) * 24;
+        const col = e.color || "#fff";
+        // Trail beam along the shot path (persists a little).
+        this.particles.push({ x: mx, y: my, x2: tx, y2: ty, vx: 0, vy: 0, life: 0.35, max: 0.35, color: col, size: (e.radius || 7) + 4, kind: "beam" });
+        // Big muzzle flash at the source.
+        this.particles.push({ x: mx, y: my, vx: 0, vy: 0, life: 0.35, max: 0.35, color: col, size: (e.radius || 7) + 10, kind: "flash" });
+        // Impact flash at the target.
+        this.particles.push({ x: tx, y: ty, vx: 0, vy: 0, life: 0.3, max: 0.3, color: col, size: (e.radius || 7) + 6, kind: "flash" });
+        // Recoil ring at the muzzle.
+        this.particles.push({ x: mx, y: my, vx: 0, vy: 0, life: 0.3, max: 0.3, color: col, size: 22, kind: "ring" });
+        // Sparks kicking back from the muzzle.
+        for (let i = 0; i < 6; i++) {
+          const a = ang + Math.PI + (Math.random() - 0.5) * 1.1;
+          const s = 260 + Math.random() * 220;
+          this.particles.push({ x: mx, y: my, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.28, max: 0.28, color: col, size: 3, kind: "spark" });
         }
         break;
       }
@@ -225,7 +236,7 @@ let CLEARINGS: { x: number; y: number; r: number }[] | null = null;
 
 // Keep decor clear of the central road and the two base areas.
 function inBaseZone(x: number): boolean {
-  return x < 620 || x > WORLD.width - 620;
+  return x < 800 || x > WORLD.width - 800;
 }
 function onRoad(y: number): boolean {
   return Math.abs(y - LANE_Y) < ROAD_HALF + 40;
@@ -470,19 +481,37 @@ function drawBasePlatform(ctx: CanvasRenderingContext2D, team: Team) {
   const color = TEAM_COLOR[team];
   const nx = s.nexus.x;
   const fx = s.fountain.x;
-  const minX = Math.min(nx, fx) - 220;
-  const maxX = Math.max(nx, fx) + 160;
-  const top = WORLD.laneTop - 120;
-  const bot = WORLD.laneBottom + 120;
-  // Raised platform slab.
-  ctx.fillStyle = team === "blue" ? "rgba(40,80,140,0.28)" : "rgba(150,45,45,0.28)";
-  roundRect(ctx, minX, top, maxX - minX, bot - top, 40);
+  const minX = Math.min(nx, fx) - 260;
+  const maxX = Math.max(nx, fx) + 260;
+  // Base area: a stepped hex-ish shape (narrow tail on the road side, wide
+  // flanks around the nexus) so the flanking turrets sit on team ground.
+  const top = LANE_Y - 320;
+  const bot = LANE_Y + 320;
+  ctx.save();
+  ctx.fillStyle = team === "blue" ? "rgba(40,80,140,0.16)" : "rgba(150,45,45,0.16)";
+  ctx.beginPath();
+  if (team === "blue") {
+    ctx.moveTo(minX, top);
+    ctx.lineTo(maxX - 80, top);
+    ctx.lineTo(maxX, LANE_Y - 60);
+    ctx.lineTo(maxX, LANE_Y + 60);
+    ctx.lineTo(maxX - 80, bot);
+    ctx.lineTo(minX, bot);
+  } else {
+    ctx.moveTo(maxX, top);
+    ctx.lineTo(minX + 80, top);
+    ctx.lineTo(minX, LANE_Y - 60);
+    ctx.lineTo(minX, LANE_Y + 60);
+    ctx.lineTo(minX + 80, bot);
+    ctx.lineTo(maxX, bot);
+  }
+  ctx.closePath();
   ctx.fill();
   ctx.strokeStyle = color;
-  ctx.globalAlpha = 0.5;
-  ctx.lineWidth = 4;
+  ctx.globalAlpha = 0.35;
+  ctx.lineWidth = 3;
   ctx.stroke();
-  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -860,14 +889,24 @@ function drawMinion(ctx: CanvasRenderingContext2D, m: MinionSnap) {
 
 function drawProjectile(ctx: CanvasRenderingContext2D, p: ProjSnap) {
   const color = TEAM_COLOR[p.team];
+  const fill = p.k === "skillshot" ? lightColor(p.sp) : color;
+  const r = Math.max(6, Math.min(p.r, 26));
   ctx.save();
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 12;
-  ctx.fillStyle = p.k === "skillshot" ? lightColor(p.sp) : color;
-  const r = Math.max(5, Math.min(p.r, 26));
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-  ctx.fill();
+  // Outer glow halo.
+  const g = ctx.createRadialGradient(p.x, p.y, r * 0.2, p.x, p.y, r * 3);
+  g.addColorStop(0, fill);
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(p.x, p.y, r * 3, 0, Math.PI * 2); ctx.fill();
+  // Bright core.
+  ctx.globalAlpha = 1;
+  ctx.shadowColor = fill;
+  ctx.shadowBlur = 20;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.55, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = fill;
+  ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 
