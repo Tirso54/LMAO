@@ -6,6 +6,7 @@ import { LobbyState, Snapshot, ChampSnap } from "@/game/net/protocol";
 import { PlayerInput, CastCommand, Team } from "@/game/engine/types";
 import { CHAMPIONS } from "@/game/engine/champions";
 import { WORLD, STRUCTURES } from "@/game/engine/constants";
+import { ITEMS, RECOMMENDED } from "@/game/engine/items";
 import { Camera, FxSystem, drawScene, drawWorld, interpolate } from "@/game/render/renderer";
 import Hud from "@/components/Hud";
 
@@ -30,17 +31,16 @@ export default function GamePlay({
   const localIdRef = useRef(session.localPlayerId);
   const [hud, setHud] = useState<Snapshot | null>(null);
   const lastHudRef = useRef(0);
-  const [shopOpen, setShopOpen] = useState(false);
-  const shopOpenRef = useRef(false);
   const [showHelp, setShowHelp] = useState(false);
   const isTouchRef = useRef(false);
   const touchRef = useRef<{ moving: boolean; pinchDist: number; pinchZoom: number }>({ moving: false, pinchDist: 0, pinchZoom: 0.62 });
+  const joyRef = useRef<{ active: boolean; dx: number; dy: number }>({ active: false, dx: 0, dy: 0 });
+  const lastAutoBuyRef = useRef(0);
 
   useEffect(() => {
     isTouchRef.current = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
   }, []);
 
-  useEffect(() => { shopOpenRef.current = shopOpen; }, [shopOpen]);
   useEffect(() => { localIdRef.current = session.localPlayerId; });
 
   // Subscribe to snapshots.
@@ -64,6 +64,39 @@ export default function GamePlay({
   useEffect(() => {
     const flush = setInterval(() => {
       const p = pendingRef.current;
+
+      // Virtual joystick (Brawl Stars style): keep moving while the stick is held.
+      const joy = joyRef.current;
+      if (joy.active && (joy.dx !== 0 || joy.dy !== 0)) {
+        const snap = latestSnap();
+        const me = findLocalChamp(snap);
+        if (me && me.alive) {
+          const d = Math.hypot(joy.dx, joy.dy) || 1;
+          p.move = { x: me.x + (joy.dx / d) * 110, y: me.y + (joy.dy / d) * 110 };
+          p.attackTarget = null;
+        }
+      }
+
+      // Auto-buy the recommended build when standing in the fountain.
+      const now = performance.now();
+      if (now - lastAutoBuyRef.current > 500) {
+        lastAutoBuyRef.current = now;
+        const snap = latestSnap();
+        const me = findLocalChamp(snap);
+        if (me && me.alive) {
+          const f = STRUCTURES[me.team].fountain;
+          const inFountain = Math.hypot(me.x - f.x, me.y - f.y) < 330;
+          if (inFountain && me.items.length < 6) {
+            const role = CHAMPIONS[me.cid].role;
+            const rec = RECOMMENDED[role] || [];
+            const next = rec.find((id) => !me.items.includes(id) && me.gold >= (ITEMS[id]?.cost || 0));
+            if (next) {
+              p.buy = [...(p.buy || []), next];
+            }
+          }
+        }
+      }
+
       const hasContent =
         p.move || p.attackMove || p.attackTarget != null || p.stop || p.recall || p.levelUp != null || (p.casts && p.casts.length) || (p.buy && p.buy.length) || (p.sell && p.sell.length) || p.ping;
       if (hasContent) {
@@ -185,8 +218,6 @@ export default function GamePlay({
         pendingRef.current.stop = true;
       } else if (k === "b") {
         pendingRef.current.recall = true;
-      } else if (k === "p") {
-        setShopOpen((v) => !v);
       } else if (k === "d" && e.ctrlKey) {
         /* reserved */
       } else if (["1", "2", "3", "4"].includes(k) && e.ctrlKey) {
@@ -344,19 +375,16 @@ export default function GamePlay({
   const doInput = (patch: Partial<PlayerInput>) => {
     Object.assign(pendingRef.current, patch);
   };
-  const buyItem = (id: string) => {
-    const p = pendingRef.current;
-    p.buy = [...(p.buy || []), id];
-  };
-  const sellItem = (id: string) => {
-    const p = pendingRef.current;
-    p.sell = [...(p.sell || []), id];
-  };
   const levelUp = (slot: number) => {
     pendingRef.current.levelUp = slot;
   };
   const recall = () => { pendingRef.current.recall = true; };
   const stop = () => { pendingRef.current.stop = true; };
+  const onJoyMove = (dx: number, dy: number) => {
+    joyRef.current.active = dx !== 0 || dy !== 0;
+    joyRef.current.dx = dx;
+    joyRef.current.dy = dy;
+  };
 
   // One-tap ability cast: auto-aim at the nearest enemy (tablet-friendly).
   const castAuto = (slot: number) => {
@@ -397,10 +425,6 @@ export default function GamePlay({
       <Hud
         snap={hud}
         localId={session.localPlayerId}
-        shopOpen={shopOpen}
-        setShopOpen={setShopOpen}
-        onBuy={buyItem}
-        onSell={sellItem}
         onLevelUp={levelUp}
         onRecall={recall}
         onStop={stop}
@@ -411,6 +435,91 @@ export default function GamePlay({
         showHelp={showHelp}
         setShowHelp={setShowHelp}
       />
+      <Joystick onMove={onJoyMove} />
+    </div>
+  );
+}
+
+// Virtual joystick control (Brawl Stars style): drag the stick to move.
+function Joystick({ onMove, size = 150 }: { onMove: (dx: number, dy: number) => void; size?: number }) {
+  const baseRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(false);
+  const [knob, setKnob] = useState({ x: 0, y: 0 });
+  const R = size / 2;
+  const knobR = size * 0.42;
+
+  const updateFrom = (clientX: number, clientY: number) => {
+    const el = baseRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    let dx = clientX - cx;
+    let dy = clientY - cy;
+    const dist = Math.hypot(dx, dy);
+    const max = R - knobR / 2;
+    if (dist > max) {
+      dx = (dx / dist) * max;
+      dy = (dy / dist) * max;
+    }
+    setKnob({ x: dx, y: dy });
+    onMove(dx, dy);
+  };
+
+  const release = () => {
+    setActive(false);
+    setKnob({ x: 0, y: 0 });
+    onMove(0, 0);
+  };
+
+  return (
+    <div
+      ref={baseRef}
+      onPointerDown={(e) => {
+        e.preventDefault();
+        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+        setActive(true);
+        updateFrom(e.clientX, e.clientY);
+      }}
+      onPointerMove={(e) => {
+        if (!active) return;
+        updateFrom(e.clientX, e.clientY);
+      }}
+      onPointerUp={release}
+      onPointerCancel={release}
+      style={{
+        position: "absolute",
+        left: 22,
+        bottom: 22,
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: "rgba(255,255,255,0.05)",
+        border: "1px solid rgba(255,255,255,0.14)",
+        boxShadow: "inset 0 0 34px rgba(0,0,0,0.55)",
+        touchAction: "none",
+        cursor: "pointer",
+        zIndex: 70,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))`,
+          width: knobR,
+          height: knobR,
+          borderRadius: "50%",
+          background: active ? "rgba(199,205,219,0.9)" : "rgba(199,205,219,0.35)",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.55)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          transition: "background 0.12s ease",
+        }}
+      />
+
     </div>
   );
 }

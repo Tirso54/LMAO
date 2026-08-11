@@ -58,31 +58,31 @@ export default function Lobby({
 
   return (
     <div className="center" style={{ alignItems: "stretch", padding: 0, minHeight: "100vh", justifyContent: "flex-start" }}>
-      <div style={{ padding: "14px 20px", background: "linear-gradient(90deg, var(--brand-orange), var(--brand-orange-2))", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+      <div style={{ padding: "14px 20px", background: "linear-gradient(90deg, #16202e, #101722)", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", borderBottom: "1px solid var(--border)" }}>
         <div className="logo" style={{ fontSize: 22 }}>
-          🛒 LMAO Lobby
+          LMAO — Møøbas
         </div>
         {session.role !== "solo" && (
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ color: "#fff", fontWeight: 700 }}>Room Code:</span>
+            <span style={{ color: "var(--ink)", fontWeight: 700 }}>Código de sala:</span>
             <button onClick={copyCode} className="flash" style={{ fontSize: 24, letterSpacing: 4, cursor: "pointer" }}>
-              {lobby.roomCode} {copied ? "✓" : "📋"}
+              {lobby.roomCode} {copied ? "Copied!" : "Copy"}
             </button>
-            <span style={{ color: "#fff", fontSize: 12, opacity: 0.9 }}>
-              Friends go to <b>Join with Code</b> and type this.
+            <span style={{ color: "var(--ink-dim)", fontSize: 12 }}>
+              Tus amigos entran con <b>Unirse con código</b> y escriben esto.
             </span>
           </div>
         )}
-        {session.role === "solo" && <span style={{ color: "#fff", fontWeight: 700 }}>Practice vs Bots</span>}
+        {session.role === "solo" && <span style={{ color: "var(--ink)", fontWeight: 700 }}>Práctica contra bots</span>}
         <div style={{ marginLeft: "auto" }}>
-          <button className="btn ghost" style={{ padding: "8px 14px", color: "#fff" }} onClick={onLeave}>
-            ✕ Leave
+          <button className="btn ghost" style={{ padding: "8px 14px" }} onClick={onLeave}>
+            Salir
           </button>
         </div>
       </div>
 
       {notice && (
-        <div style={{ background: "#111", color: "var(--brand-yellow)", padding: "8px 20px", fontSize: 13 }}>📣 {notice}</div>
+        <div style={{ background: "#111", color: "var(--brand-yellow)", padding: "8px 20px", fontSize: 13 }}>{notice}</div>
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 16, padding: 16, alignItems: "start" }} className="lobby-grid">
@@ -93,7 +93,7 @@ export default function Lobby({
 
           {isHost && (
             <div style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 14, padding: 14 }}>
-              <div style={{ fontWeight: 800, marginBottom: 10 }}>⚙️ Match Settings (Host)</div>
+              <div style={{ fontWeight: 800, marginBottom: 10 }}>Match Settings (Host)</div>
               <div className="field" style={{ marginBottom: 10 }}>
                 <label>Team Size: {size}v{size}</label>
                 <input type="range" min={1} max={5} value={size} style={{ width: "100%" }} onChange={(e) => session.setConfig?.({ teamSize: Number(e.target.value) })} />
@@ -120,7 +120,7 @@ export default function Lobby({
           {/* Chat */}
           {session.role !== "solo" && (
             <div style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 14, padding: 12 }}>
-              <div style={{ fontWeight: 800, marginBottom: 6 }}>💬 Trash Talk</div>
+              <div style={{ fontWeight: 800, marginBottom: 6 }}>Trash Talk</div>
               <div ref={chatRef} style={{ height: 120, overflowY: "auto", fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
                 {chat.length === 0 && <div style={{ color: "var(--ink-dim)" }}>Say hi (or GLHF, or something regrettable).</div>}
                 {chat.map((c, i) => (
@@ -148,7 +148,7 @@ export default function Lobby({
 
         {/* Champion select */}
         <div style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 14, padding: 14 }}>
-          <div style={{ fontWeight: 800, marginBottom: 10, fontSize: 18 }}>🧑‍🎤 Pick your (legally distinct) Champion</div>
+          <div style={{ fontWeight: 800, marginBottom: 10, fontSize: 18 }}>Elige tu campeón</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))", gap: 8 }}>
             {CHAMPION_LIST.map((c) => {
               const taken = takenChamps.has(c.id);
@@ -175,7 +175,7 @@ export default function Lobby({
                     gap: 2,
                   }}
                 >
-                  <span style={{ fontSize: 26 }}>{c.emoji}</span>
+                  <span style={{ fontSize: 26 }}>{c.glyph}</span>
                   <span style={{ fontSize: 11, fontWeight: 700 }}>{c.name}</span>
                 </button>
               );
@@ -186,17 +186,17 @@ export default function Lobby({
           {detailDef && (
             <div style={{ marginTop: 14, background: "var(--bg-2)", borderRadius: 12, padding: 14, border: `1px solid ${detailDef.color}55` }}>
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <div style={{ fontSize: 44 }}>{detailDef.emoji}</div>
+                <div style={{ fontSize: 44 }}>{detailDef.glyph}</div>
                 <div>
                   <div style={{ fontWeight: 800, fontSize: 20, color: detailDef.color }}>{detailDef.name}</div>
-                  <div style={{ color: "var(--ink-dim)", fontSize: 13 }}>{detailDef.title} · {detailDef.role} · Difficulty {"🌶️".repeat(detailDef.difficulty)}</div>
+                  <div style={{ color: "var(--ink-dim)", fontSize: 13 }}>{detailDef.title} · {detailDef.role} · Difficulty {"•".repeat(detailDef.difficulty)}</div>
                 </div>
               </div>
               <div style={{ fontSize: 13, margin: "10px 0", fontStyle: "italic", color: "var(--ink-dim)" }}>{detailDef.blurb}</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <Ability emoji={detailDef.passive.emoji} name={detailDef.passive.name} desc={detailDef.passive.desc} tag="Passive" />
+                <Ability glyph={detailDef.passive.glyph} name={detailDef.passive.name} desc={detailDef.passive.desc} tag="Passive" />
                 {detailDef.abilities.map((a, i) => (
-                  <Ability key={i} emoji={a.emoji} name={a.name} desc={a.desc} tag={["Q", "W", "E", "R"][i]} />
+                  <Ability key={i} glyph={a.glyph} name={a.name} desc={a.desc} tag={["Q", "W", "E", "R"][i]} />
                 ))}
               </div>
             </div>
@@ -209,7 +209,7 @@ export default function Lobby({
               style={{ flex: 1 }}
               onClick={() => session.setReady(!mySlot?.ready)}
             >
-              {mySlot?.ready ? "✅ Ready!" : "Ready Up"}
+              {mySlot?.ready ? "Ready!" : "Ready Up"}
             </button>
             {isHost && (
               <button
@@ -217,7 +217,7 @@ export default function Lobby({
                 style={{ flex: 1 }}
                 onClick={() => session.start?.()}
               >
-                ▶ Start Match
+                Start Match
               </button>
             )}
           </div>
@@ -235,7 +235,7 @@ function TeamPanel({ team, slots, myId, canJoin, onJoinTeam }: { team: Team; slo
   return (
     <div style={{ background: "var(--panel)", border: `1px solid ${color}55`, borderRadius: 14, padding: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <div style={{ fontWeight: 800, color }}>{team === "blue" ? "🔵 Blue Bootlegs" : "🔴 Red Refunds"}</div>
+        <div style={{ fontWeight: 800, color }}>{team === "blue" ? "Blue Bootlegs" : "Red Refunds"}</div>
         {canJoin && (
           <button className="btn ghost" style={{ padding: "4px 10px", fontSize: 12 }} onClick={onJoinTeam}>
             Join
@@ -245,11 +245,11 @@ function TeamPanel({ team, slots, myId, canJoin, onJoinTeam }: { team: Team; slo
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {slots.map((s, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", background: "var(--bg-2)", borderRadius: 8, opacity: s ? 1 : 0.5 }}>
-            <span style={{ fontSize: 22 }}>{s ? CHAMPIONS[s.championId]?.emoji : "➕"}</span>
+            <span style={{ fontSize: 22 }}>{s ? CHAMPIONS[s.championId]?.glyph : "+"}</span>
             <span style={{ flex: 1, fontWeight: s?.playerId === myId ? 800 : 500 }}>
               {s ? s.name : "AI Bootleg Bot"} {s?.playerId === myId ? "(you)" : ""}
             </span>
-            {s?.ready && <span style={{ color: "var(--green)", fontSize: 12 }}>✅</span>}
+            {s?.ready && <span style={{ color: "var(--green)", fontSize: 12, fontWeight: 800 }}>READY</span>}
             {!s && <span style={{ color: "var(--ink-dim)", fontSize: 11 }}>bot</span>}
           </div>
         ))}
@@ -258,12 +258,12 @@ function TeamPanel({ team, slots, myId, canJoin, onJoinTeam }: { team: Team; slo
   );
 }
 
-function Ability({ emoji, name, desc, tag }: { emoji: string; name: string; desc: string; tag: string }) {
+function Ability({ glyph, name, desc, tag }: { glyph: string; name: string; desc: string; tag: string }) {
   return (
     <div title={desc} style={{ flex: "1 1 30%", minWidth: 120, background: "var(--panel-2)", borderRadius: 8, padding: 8 }}>
       <div style={{ fontSize: 12, fontWeight: 800 }}>
         <span style={{ background: "#000", borderRadius: 4, padding: "1px 5px", marginRight: 4 }}>{tag}</span>
-        {emoji} {name}
+        {glyph} {name}
       </div>
       <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 3, lineHeight: 1.3 }}>{desc}</div>
     </div>

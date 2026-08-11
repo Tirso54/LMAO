@@ -1,10 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
 import { Snapshot, ChampSnap } from "@/game/net/protocol";
 import { CHAMPIONS } from "@/game/engine/champions";
-import { ITEM_LIST, ITEMS, RECOMMENDED } from "@/game/engine/items";
-import { STRUCTURES } from "@/game/engine/constants";
+import { ITEMS } from "@/game/engine/items";
 import { Team } from "@/game/engine/types";
 
 const KEYS = ["Q", "W", "E", "R"];
@@ -12,10 +10,6 @@ const KEYS = ["Q", "W", "E", "R"];
 export default function Hud({
   snap,
   localId,
-  shopOpen,
-  setShopOpen,
-  onBuy,
-  onSell,
   onLevelUp,
   onRecall,
   onStop,
@@ -28,10 +22,6 @@ export default function Hud({
 }: {
   snap: Snapshot | null;
   localId: string;
-  shopOpen: boolean;
-  setShopOpen: (v: boolean) => void;
-  onBuy: (id: string) => void;
-  onSell: (id: string) => void;
   onLevelUp: (slot: number) => void;
   onRecall: () => void;
   onStop?: () => void;
@@ -44,12 +34,6 @@ export default function Hud({
 }) {
   const me = snap?.champs.find((c) => c.owner === localId) || null;
   const def = me ? CHAMPIONS[me.cid] : null;
-
-  const inFountain = useMemo(() => {
-    if (!me) return false;
-    const f = STRUCTURES[me.team].fountain;
-    return Math.hypot(me.x - f.x, me.y - f.y) < 330;
-  }, [me]);
 
   const mmss = (t: number) => {
     const m = Math.floor(t / 60);
@@ -106,10 +90,10 @@ export default function Hud({
           {snap.killFeed.slice(-6).map((k) => (
             <div key={k.id} style={{ background: "rgba(0,0,0,0.55)", borderRadius: 6, padding: "3px 8px", fontSize: 12, marginBottom: 3 }}>
               <b style={{ color: k.killerTeam === "blue" ? "var(--blue)" : "var(--red)" }}>{k.killer}</b>
-              {k.isTurret ? " 🗼 destroyed " : k.isNexus ? " 💥 DESTROYED " : " 🗡️ "}
+              {k.isTurret ? " destroyed " : k.isNexus ? " DESTROYED " : " killed "}
               <b style={{ color: k.victimTeam === "blue" ? "var(--blue)" : "var(--red)" }}>{k.victim}</b>
               {k.multi ? <span style={{ color: "var(--brand-yellow)" }}> ×{k.multi}!</span> : null}
-              {k.shutdown ? <span style={{ color: "var(--brand-orange)" }}> 💰SHUTDOWN</span> : null}
+              {k.shutdown ? <span style={{ color: "var(--brand-orange)" }}> SHUTDOWN</span> : null}
             </div>
           ))}
         </div>
@@ -122,7 +106,7 @@ export default function Hud({
           <div style={portrait}>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ fontSize: 40, position: "relative" }}>
-                {def.emoji}
+                {def.glyph}
                 <span style={lvlBadge}>{me.lvl}</span>
               </div>
               <div style={{ flex: 1 }}>
@@ -130,7 +114,7 @@ export default function Hud({
                 <Bar val={me.hp} max={me.mhp} color="#54e08a" label={`${Math.round(me.hp)}/${me.mhp}`} />
                 <Bar val={me.mp} max={me.mmp} color="#3a78ff" label={me.mmp > 0 ? `${Math.round(me.mp)}/${me.mmp}` : "—"} />
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
-                  <span style={{ color: "var(--brand-yellow)", fontWeight: 800, fontSize: 13 }}>🪙 {me.gold}</span>
+                  <span style={{ color: "var(--brand-yellow)", fontWeight: 800, fontSize: 13 }}>{me.gold}</span>
                   <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>{me.k}/{me.d}/{me.a} · {me.cs} CS</span>
                 </div>
               </div>
@@ -145,7 +129,7 @@ export default function Hud({
           {/* Abilities */}
           <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
             <div style={passiveIcon} title={`${def.passive.name}: ${def.passive.desc}`}>
-              <div style={{ fontSize: 26 }}>{def.passive.emoji}</div>
+              <div style={{ fontSize: 26 }}>{def.passive.glyph}</div>
               <div style={{ fontSize: 9, color: "var(--ink-dim)" }}>Passive</div>
             </div>
             {def.abilities.map((a, i) => {
@@ -160,7 +144,7 @@ export default function Hud({
                   style={{ ...abilityBox, opacity: learned ? 1 : 0.55, borderColor: learned ? "var(--brand-orange)" : "var(--border)", cursor: learned ? "pointer" : "default" }}
                   title={`${a.name}: ${a.desc}`}
                 >
-                  <div style={{ fontSize: 28 }}>{a.emoji}</div>
+                  <div style={{ fontSize: 28 }}>{a.glyph}</div>
                   {onCd && <div style={cdOverlay}>{ab.cd.toFixed(1)}</div>}
                   <div style={keyBadge}>{isTouch ? "" : KEYS[i]}</div>
                   <div style={rankPips}>
@@ -182,16 +166,18 @@ export default function Hud({
               {Array.from({ length: 6 }).map((_, i) => {
                 const it = me.items[i] ? ITEMS[me.items[i]] : null;
                 return (
-                  <div key={i} title={it?.name} onClick={() => it && onSell(me.items[i])} style={{ ...itemSlot, cursor: it ? "pointer" : "default" }}>
-                    {it ? it.emoji : ""}
+                  <div key={i} title={it?.name} style={itemSlot}>
+                    {it ? it.glyph : ""}
                   </div>
                 );
               })}
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <button className="btn primary" style={miniBtn} onClick={() => setShopOpen(!shopOpen)}>🛒 Shop</button>
-              <button className="btn blue" style={miniBtn} onClick={onRecall}>🏠 Recall</button>
-              <button className="btn ghost" style={miniBtn} onClick={() => onStop?.()}>✋ Stop</button>
+              <button className="btn blue" style={miniBtn} onClick={onRecall}>Volver</button>
+              <button className="btn ghost" style={miniBtn} onClick={() => onStop?.()}>Alto</button>
+            </div>
+            <div style={{ fontSize: 10, color: "var(--ink-dim)", maxWidth: 130, textAlign: "right" }}>
+              Los objetos se compran solos en tu base.
             </div>
           </div>
         </div>
@@ -199,32 +185,27 @@ export default function Hud({
 
       {/* Level-up hint */}
       {me && me.points > 0 && (
-        <div style={pointsHint}>⬆️ {me.points} ability point{me.points > 1 ? "s" : ""}! Click the + (or Ctrl+Q/W/E/R)</div>
-      )}
-
-      {/* Shop overlay */}
-      {shopOpen && me && (
-        <Shop me={me} inFountain={inFountain} onBuy={onBuy} onSell={onSell} onClose={() => setShopOpen(false)} role={def?.role || "Fighter"} />
+        <div style={pointsHint}>{me.points} ability point{me.points > 1 ? "s" : ""}! Click the + (or Ctrl+Q/W/E/R)</div>
       )}
 
       {/* Countdown */}
       {snap?.phase === "countdown" && (
         <div style={fullOverlay}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 54, fontWeight: 900 }}>🛒 GET READY 🛒</div>
-            <div style={{ color: "var(--ink-dim)", fontSize: 18 }}>Minions incoming. Destroy the enemy Nexus. Don't int.</div>
-            {me && <div style={{ marginTop: 16, fontSize: 40 }}>{CHAMPIONS[me.cid].emoji} You are {me.name}</div>}
+            <div style={{ fontSize: 54, fontWeight: 900, color: "var(--brand-yellow)" }}>PREPÁRATE</div>
+            <div style={{ color: "var(--ink-dim)", fontSize: 18 }}>Llegan los minions. Derriba el Nexo enemigo.</div>
+            {me && <div style={{ marginTop: 16, fontSize: 40 }}>{CHAMPIONS[me.cid].glyph} Eres {me.name}</div>}
           </div>
         </div>
       )}
 
       {/* Death overlay */}
       {me && !me.alive && snap?.phase === "playing" && (
-        <div style={{ ...fullOverlay, background: "rgba(40,0,0,0.55)" }}>
+        <div style={{ ...fullOverlay, background: "rgba(30,0,0,0.55)" }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 44, fontWeight: 900, color: "var(--red)" }}>💀 REFUNDED</div>
-            <div style={{ fontSize: 22 }}>Respawning in {Math.ceil(me.rt)}s…</div>
-            <div style={{ color: "var(--ink-dim)", marginTop: 8 }}>Tip: standing in things that hurt is bad, actually.</div>
+            <div style={{ fontSize: 44, fontWeight: 900, color: "var(--red)" }}>ELIMINADO</div>
+            <div style={{ fontSize: 22 }}>Revives en {Math.ceil(me.rt)}s…</div>
+            <div style={{ color: "var(--ink-dim)", marginTop: 8 }}>Consejo: estar dentro de lo que hace daño es malo, la verdad.</div>
           </div>
         </div>
       )}
@@ -245,9 +226,9 @@ function TeamScore({ team, kills, gold, right }: { team: Team; kills: number; go
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: right ? "flex-end" : "flex-start" }}>
       <div style={{ fontWeight: 900, fontSize: 20, color: team === "blue" ? "var(--blue)" : "var(--red)" }}>
-        {team === "blue" ? "🔵 Blue" : "Red 🔴"} · {kills} kills
+        {team === "blue" ? "Blue" : "Red"} · {kills} kills
       </div>
-      <div style={{ fontSize: 12, color: "var(--brand-yellow)" }}>🪙 {gold.toLocaleString()}</div>
+      <div style={{ fontSize: 12, color: "var(--brand-yellow)" }}>{gold.toLocaleString()}</div>
     </div>
   );
 }
@@ -257,7 +238,7 @@ function RosterRow({ c, me, right }: { c: ChampSnap; me?: boolean; right?: boole
   const hp = Math.max(0, c.hp / c.mhp);
   return (
     <div style={{ display: "flex", flexDirection: right ? "row-reverse" : "row", alignItems: "center", gap: 6, background: me ? "rgba(255,180,60,0.18)" : "rgba(0,0,0,0.5)", border: me ? "1px solid var(--brand-yellow)" : "1px solid var(--border)", borderRadius: 8, padding: "3px 7px", fontSize: 12, minWidth: 150 }}>
-      <span style={{ fontSize: 20, opacity: c.alive ? 1 : 0.4 }}>{def?.emoji}</span>
+      <span style={{ fontSize: 20, opacity: c.alive ? 1 : 0.4 }}>{def?.glyph}</span>
       <div style={{ flex: 1 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 6 }}>
           <b>{c.name}</b>
@@ -266,7 +247,7 @@ function RosterRow({ c, me, right }: { c: ChampSnap; me?: boolean; right?: boole
         <div style={{ height: 4, background: "rgba(0,0,0,0.5)", borderRadius: 2, marginTop: 2 }}>
           <div style={{ height: "100%", width: `${hp * 100}%`, background: c.alive ? (c.team === "blue" ? "#3aa0ff" : "#ff5a52") : "#555", borderRadius: 2 }} />
         </div>
-        <div style={{ fontSize: 10, color: "var(--ink-dim)" }}>{c.k}/{c.d}/{c.a} · {c.cs}cs {c.alive ? "" : `· ☠️${Math.ceil(c.rt)}s`}</div>
+        <div style={{ fontSize: 10, color: "var(--ink-dim)" }}>{c.k}/{c.d}/{c.a} · {c.cs}cs {c.alive ? "" : `· ${Math.ceil(c.rt)}s`}</div>
       </div>
     </div>
   );
@@ -291,74 +272,21 @@ function Stat({ label, v }: { label: string; v: any }) {
   );
 }
 
-function Shop({ me, inFountain, onBuy, onSell, onClose, role }: { me: ChampSnap; inFountain: boolean; onBuy: (id: string) => void; onSell: (id: string) => void; onClose: () => void; role: string }) {
-  const rec = RECOMMENDED[role] || [];
-  return (
-    <div style={shopWrap}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <div style={{ fontWeight: 900, fontSize: 20 }}>🛍️ The Bootleg Bazaar</div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <span style={{ color: "var(--brand-yellow)", fontWeight: 800 }}>🪙 {me.gold}</span>
-          <button className="btn ghost" style={{ padding: "4px 12px" }} onClick={onClose}>✕</button>
-        </div>
-      </div>
-      {!inFountain && <div style={{ color: "var(--brand-orange)", fontSize: 13, marginBottom: 8 }}>⚠️ Return to your fountain (press B to recall) to buy items.</div>}
-      {rec.length > 0 && (
-        <div style={{ fontSize: 12, color: "var(--ink-dim)", marginBottom: 4 }}>⭐ Recommended for {role}:</div>
-      )}
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-        {rec.map((id) => {
-          const it = ITEMS[id];
-          const afford = me.gold >= it.cost && inFountain && me.items.length < 6 && !me.items.includes(id);
-          return (
-            <button key={id} disabled={!afford} onClick={() => onBuy(id)} style={{ ...recItem, opacity: afford ? 1 : 0.5 }}>
-              {it.emoji} {it.name} · 🪙{it.cost}
-            </button>
-          );
-        })}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 6, maxHeight: "38vh", overflowY: "auto" }}>
-        {ITEM_LIST.map((it) => {
-          const owned = me.items.includes(it.id);
-          const afford = me.gold >= it.cost && inFountain && me.items.length < 6;
-          return (
-            <button key={it.id} disabled={!afford && !owned} onClick={() => onBuy(it.id)} title={it.desc} style={{ ...shopItem, opacity: afford || owned ? 1 : 0.55, borderColor: owned ? "var(--green)" : "var(--border)" }}>
-              <span style={{ fontSize: 22 }}>{it.emoji}</span>
-              <div style={{ flex: 1, textAlign: "left" }}>
-                <div style={{ fontSize: 12, fontWeight: 700 }}>{it.name}</div>
-                <div style={{ fontSize: 10, color: "var(--ink-dim)", lineHeight: 1.2 }}>{it.desc}</div>
-              </div>
-              <span style={{ color: "var(--brand-yellow)", fontWeight: 800, fontSize: 12 }}>🪙{it.cost}</span>
-            </button>
-          );
-        })}
-      </div>
-      {me.items.length > 0 && (
-        <div style={{ marginTop: 8, fontSize: 12, color: "var(--ink-dim)" }}>
-          Owned (click to sell 70%): {me.items.map((id, i) => (
-            <button key={i} onClick={() => onSell(id)} style={sellChip}>{ITEMS[id]?.emoji} {ITEMS[id]?.name} ✕</button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function EndScreen({ snap, localTeam, onExit, onRematch }: { snap: Snapshot; localTeam: Team; onExit: () => void; onRematch?: () => void }) {
   const win = snap.winner === localTeam;
   const sorted = [...snap.champs].sort((a, b) => b.k - a.k);
   return (
     <div style={{ ...fullOverlay, background: "rgba(3,6,14,0.92)", flexDirection: "column" }}>
       <div style={{ fontSize: 72, fontWeight: 900, color: win ? "var(--brand-yellow)" : "var(--red)", textShadow: "0 4px 20px rgba(0,0,0,0.6)" }}>
-        {win ? "🏆 VICTORY" : "💀 DEFEAT"}
+        {win ? "VICTORIA" : "DERROTA"}
       </div>
       <div style={{ color: "var(--ink-dim)", marginBottom: 18 }}>
-        {win ? "Your bootleg reign is complete. Please rate 5 stars." : "Refunded. The enemy Nexus files for warranty."}
+        {win ? "Has destruido el Nexo enemigo." : "Tu Nexo ha sido destruido."}
       </div>
       <div style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 12, padding: 16, width: "min(560px, 92vw)" }}>
         {sorted.map((c) => (
           <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0", borderBottom: "1px solid var(--border)" }}>
-            <span style={{ fontSize: 22 }}>{CHAMPIONS[c.cid]?.emoji}</span>
+            <span style={{ fontSize: 22 }}>{CHAMPIONS[c.cid]?.glyph}</span>
             <b style={{ flex: 1, color: c.team === "blue" ? "var(--blue)" : "var(--red)" }}>{c.name}</b>
             <span style={{ fontSize: 13 }}>{c.k}/{c.d}/{c.a}</span>
             <span style={{ fontSize: 12, color: "var(--ink-dim)", width: 60, textAlign: "right" }}>{c.cs} CS</span>
@@ -367,8 +295,8 @@ function EndScreen({ snap, localTeam, onExit, onRematch }: { snap: Snapshot; loc
         ))}
       </div>
       <div style={{ display: "flex", gap: 12, marginTop: 18 }}>
-        {onRematch && <button className="btn green" onClick={onRematch}>🔁 Rematch</button>}
-        <button className="btn primary" onClick={onExit}>🛒 Back to Store</button>
+        {onRematch && <button className="btn green" onClick={onRematch}>Revancha</button>}
+        <button className="btn primary" onClick={onExit}>Volver al menú</button>
       </div>
     </div>
   );
@@ -378,26 +306,26 @@ function HelpModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>🎮 How to Play</h2>
-        <div className="sub">You've got this. Probably.</div>
-        <div style={{ fontWeight: 800, marginBottom: 4 }}>📱 Touch / Tablet</div>
+        <h2>Cómo se juega</h2>
+        <div className="sub">Lo tienes. Casi seguro.</div>
+        <div style={{ fontWeight: 800, marginBottom: 4 }}>Táctil / Mando</div>
         <ul style={{ lineHeight: 1.8, fontSize: 14, marginTop: 0 }}>
-          <li><b>Tap / drag the map</b> — move · <b>tap an enemy</b> — attack it</li>
-          <li><b>Tap an ability button</b> (Q/W/E/R) — auto-aims at the nearest enemy</li>
-          <li><b>Pinch</b> — zoom · <b>Shop / Recall / Stop</b> buttons bottom-right</li>
-          <li><b>＋ on an ability</b> — level it up</li>
+          <li><b>Joystick (izquierda)</b> — mueve a tu campeón · mantén y arrastra la palanca</li>
+          <li><b>Botones de habilidad</b> — se apuntan solos al enemigo más cercano</li>
+          <li><b>Pellizco</b> — zoom · <b>Volver / Alto</b> — botones abajo a la derecha</li>
+          <li><b>＋ en una habilidad</b> — súbela de nivel</li>
         </ul>
-        <div style={{ fontWeight: 800, margin: "8px 0 4px" }}>🖱️ Mouse / Keyboard</div>
+        <div style={{ fontWeight: 800, margin: "8px 0 4px" }}>Ratón / Teclado</div>
         <ul style={{ lineHeight: 1.8, fontSize: 14, marginTop: 0 }}>
-          <li><b>Right-click</b> — move / attack · <b>Q W E R</b> — cast at cursor</li>
-          <li><b>A</b> attack-move · <b>S</b> stop · <b>B</b> recall · <b>P</b> shop</li>
-          <li><b>Ctrl+Q/W/E/R</b> — level up · <b>Wheel</b> zoom · <b>Alt+Click</b> ping</li>
+          <li><b>Clic derecho</b> — mover / atacar · <b>Q W E R</b> — lanzar habilidades</li>
+          <li><b>A</b> ataque-movimiento · <b>S</b> parar · <b>B</b> volver a base</li>
+          <li><b>Ctrl+Q/W/E/R</b> — subir nivel · <b>Rueda</b> zoom · <b>Alt+Clic</b> ping</li>
         </ul>
         <div style={{ fontSize: 13, color: "var(--ink-dim)", marginTop: 10 }}>
-          Goal: push a lane with your minions, destroy the enemy turrets, then smash their <b>Nexus</b>.
-          Last-hit minions for 🪙 gold, buy items, snowball, win. It's basically the real game but 97% off.
+          Objetivo: empuja tu calle con los minions, derriba las torretas enemigas y destruye su <b>Nexo</b>.
+          Los objetos se compran solos en tu base con el oro que ganes.
         </div>
-        <button className="btn primary" style={{ width: "100%", marginTop: 14 }} onClick={onClose}>Got it</button>
+        <button className="btn primary" style={{ width: "100%", marginTop: 14 }} onClick={onClose}>Entendido</button>
       </div>
     </div>
   );
@@ -420,9 +348,5 @@ const plusBtn: React.CSSProperties = { position: "absolute", top: -8, right: -8,
 const itemSlot: React.CSSProperties = { width: 34, height: 34, borderRadius: 6, background: "rgba(0,0,0,0.4)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 };
 const miniBtn: React.CSSProperties = { padding: "6px 10px", fontSize: 12 };
 const pointsHint: React.CSSProperties = { position: "absolute", bottom: 92, left: "50%", transform: "translateX(-50%)", background: "var(--green)", color: "#fff", padding: "4px 14px", borderRadius: 20, fontSize: 13, fontWeight: 700 };
-const shopWrap: React.CSSProperties = { position: "absolute", bottom: 100, left: 12, width: "min(560px, 94vw)", background: "rgba(10,14,24,0.97)", border: "1px solid var(--border)", borderRadius: 14, padding: 14, boxShadow: "0 20px 60px rgba(0,0,0,0.6)" };
-const shopItem: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px", color: "var(--ink)" };
-const recItem: React.CSSProperties = { background: "var(--panel-2)", border: "1px solid var(--brand-orange)", borderRadius: 8, padding: "6px 10px", color: "var(--ink)", fontSize: 12, fontWeight: 700 };
-const sellChip: React.CSSProperties = { background: "var(--panel-2)", border: "1px solid var(--border)", borderRadius: 6, padding: "2px 6px", margin: "0 4px", color: "var(--ink)", fontSize: 11, cursor: "pointer" };
 const fullOverlay: React.CSSProperties = { position: "absolute", inset: 0, background: "rgba(3,6,14,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60 };
 const helpBtn: React.CSSProperties = { position: "absolute", bottom: 10, right: 10, width: 36, height: 36, borderRadius: "50%", background: "var(--panel)", border: "1px solid var(--border)", color: "var(--ink)", fontWeight: 900, fontSize: 18, zIndex: 61 };

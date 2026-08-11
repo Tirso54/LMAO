@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LMAO — League of Møøbas | The Amazingly Off-brand MOBA",
+  title: "LMAO — League of Møøbas | MOBA en el navegador",
   description:
-    "Why pay full price for a MOBA? LMAO is a bargain-bin League of Legends knockoff you can actually play online with friends. Host a room, invite the squad, and destroy the enemy Nexus. 90% OFF (fake discount).",
+    "LMAO es un MOBA jugable directamente en el navegador, gratis y con multijugador online. Controla a tu campeón con controles táctiles estilo Brawl Stars y derriba el Nexo enemigo.",
 };
 
 export const viewport: Viewport = {
@@ -12,7 +12,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#ff6a00",
+  themeColor: "#080b10",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

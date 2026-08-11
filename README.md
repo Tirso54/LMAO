@@ -1,4 +1,4 @@
-# 🛒 LMAO — League of Møøbas: The Amazingly Off-brand MOBA
+# LMAO — League of Møøbas: The Amazingly Off-brand MOBA
 
 > Why pay full price for a MOBA when you can pay **$0** for this legally-distinct one?
 > **LMAO** is a bargain-bin *League of Legends* knockoff you can actually play online with your friends.
@@ -11,26 +11,26 @@ so it deploys anywhere Next.js does, with **no dedicated game server required.**
 
 ---
 
-## ✨ What's in the box
+## What's in the box
 
-- **🏪 A parody bargain-bin storefront** front-end (fake discounts, flash-sale timers, ⭐ reviews, dropshipping jokes).
-- **🌐 Real online multiplayer.** The host creates a room and gets a 5-letter code; friends type it in to join —
+- **A parody bargain-bin storefront** front-end (fake discounts, flash-sale timers, star reviews, dropshipping jokes).
+- **Real online multiplayer.** The host creates a room and gets a 5-letter code; friends type it in to join —
   exactly the "join the host's room" model of modern web multiplayer games. Empty seats fill with **AI bots**,
   so it's fully playable solo too.
-- **🧑‍🎤 8 legally-distinct champions**, each with a passive + Q/W/E/R abilities (skillshots, dashes, hooks,
+- **8 legally-distinct champions**, each with a passive + Q/W/E/R abilities (skillshots, dashes, hooks,
   global ults, executes, traps, shields…): Yasøu, Teemoo, Ashee, Garón, Jinix, Luux, Blïtzcronk, Dariôs.
-- **⚔️ A full MOBA loop:** minion waves, turrets, a Nexus, last-hitting for gold, shared XP, 18 levels,
+- **A full MOBA loop:** minion waves, turrets, a Nexus, last-hitting for gold, shared XP, 18 levels,
   ability ranking, respawn timers, kill/assist bounties, multikills & shutdowns.
-- **🛍️ The Bootleg Bazaar** in-game item shop (Infoggnity Edge, Rabadong's Deathkap, Ninja Tabbies…).
-- **🤖 AI bots** that farm, poke, engage, kite, retreat, recall, buy items, and push to end the game.
-- **🎮 Classic controls:** right-click move/attack, QWER quick-cast, attack-move, recall, shop, ping, zoom.
+- **The Bootleg Bazaar** in-game item shop (Infoggnity Edge, Rabadong's Deathkap, Ninja Tabbies…).
+- **AI bots** that farm, poke, engage, kite, retreat, recall, buy items, and push to end the game.
+- **Classic controls:** right-click move/attack, QWER quick-cast, attack-move, recall, shop, ping, zoom.
 
-## 🎯 How to win
+## How to win
 
 Push a lane with your minions, take down the enemy turrets, then smash their **Nexus**. Last-hit minions
-for 🪙 gold, buy items, snowball, win. It's basically the real game, but 97% off.
+for gold, buy items, snowball, win. It's basically the real game, but 97% off.
 
-## 🕹️ Controls
+## Controls
 
 | Action | Input |
 | --- | --- |
@@ -42,7 +42,7 @@ for 🪙 gold, buy items, snowball, win. It's basically the real game, but 97% o
 | Level up an ability | the **＋** button or **Ctrl+Q/W/E/R** |
 | Zoom / Ping | **Mouse wheel** / **Alt+Click** |
 
-## 🚀 Run it locally
+## Run it locally
 
 ```bash
 npm install
@@ -77,7 +77,7 @@ purely for signaling (finding peers) — **no backend/game server or database is
 Vercel deployment is 100% static/serverless-friendly. Hosting elsewhere (Netlify, Node server, etc.)
 works the same way — it's a standard `next build && next start` app.
 
-## 🧱 Architecture
+## Architecture
 
 ```
 app/                     Next.js App Router (store portal + /play)

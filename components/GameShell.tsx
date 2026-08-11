@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { HostSession, ClientSession, GameSession } from "@/game/net/session";
 import { LobbyState } from "@/game/net/protocol";
 import { GameConfig, Team } from "@/game/engine/types";
-import { CHAMPION_LIST, CHAMPIONS } from "@/game/engine/champions";
+import { CHAMPION_LIST, CHAMPIONS, CHAMPION_IDS } from "@/game/engine/champions";
 import Lobby from "@/components/Lobby";
 import GamePlay from "@/components/GamePlay";
 
@@ -14,6 +14,11 @@ type Screen = "menu" | "connecting" | "lobby" | "game";
 function getName(): string {
   if (typeof window === "undefined") return "Player";
   return localStorage.getItem("lmao_name") || "";
+}
+
+function defaultName(): string {
+  const pool = ["Jugador", "Botín", "Lanero", "Ganker", "Topo", "Feeder", "SoloQ"];
+  return pool[Math.floor(Math.random() * pool.length)] + Math.floor(100 + Math.random() * 900);
 }
 
 export default function GameShell() {
@@ -27,6 +32,7 @@ export default function GameShell() {
   const [connectingMsg, setConnectingMsg] = useState("");
   const [notice, setNotice] = useState("");
   const sessionRef = useRef<GameSession | null>(null);
+  const attemptedQuickRef = useRef(false);
 
   const mode = params.get("mode") || "menu";
 
@@ -43,19 +49,26 @@ export default function GameShell() {
   }, []);
 
   const startHost = useCallback(
-    async (solo: boolean, nm: string) => {
+    async (solo: boolean, nm: string, autoStart = false) => {
       setScreen("connecting");
-      setConnectingMsg(solo ? "Booting the bootleg arena…" : "Opening your room to the internet…");
+      setConnectingMsg(solo ? "Preparando la arena…" : "Abriendo tu sala al mundo…");
       const s = new HostSession(nm, solo);
       wire(s);
       try {
         await s.startNetworking();
         sessionRef.current = s;
         setSession(s);
-        setLobby({ ...s.getLobby() });
-        setScreen("lobby");
+        if (autoStart) {
+          const cid = CHAMPION_IDS[Math.floor(Math.random() * CHAMPION_IDS.length)];
+          s.pickChamp(cid);
+          s.setReady(true);
+          s.start();
+        } else {
+          setLobby({ ...s.getLobby() });
+          setScreen("lobby");
+        }
       } catch (e: any) {
-        setError("Couldn't open a room (WebRTC broker unreachable). You can still play vs bots offline.");
+        setError("No se pudo abrir la sala (broker WebRTC inaccesible). Igual puedes jugar contra bots sin conexión.");
         setScreen("menu");
       }
     },
@@ -65,7 +78,7 @@ export default function GameShell() {
   const startJoin = useCallback(
     async (code: string, nm: string) => {
       setScreen("connecting");
-      setConnectingMsg(`Knocking on room ${code.toUpperCase()}…`);
+      setConnectingMsg(`Entrando en la sala ${code.toUpperCase()}…`);
       const s = new ClientSession(nm);
       wire(s);
       try {
@@ -74,7 +87,7 @@ export default function GameShell() {
         setSession(s);
         setScreen("lobby");
       } catch (e: any) {
-        setError(e?.message || "Could not reach that room. Double-check the code.");
+        setError(e?.message || "No se pudo llegar a esa sala. Revisa el código.");
         setScreen("menu");
       }
     },
@@ -84,12 +97,18 @@ export default function GameShell() {
   // Auto-trigger based on ?mode=
   useEffect(() => {
     if (screen !== "menu") return;
-    if (!name) return; // wait for name entry
-    if (mode === "solo") startHost(true, name);
-    else if (mode === "host") startHost(false, name);
-    // join is manual (needs code)
+    if (mode === "solo" && !attemptedQuickRef.current) {
+      attemptedQuickRef.current = true;
+      const nm = name || defaultName();
+      if (!name) {
+        setName(nm);
+        localStorage.setItem("lmao_name", nm);
+      }
+      startHost(true, nm, true);
+    }
+    // host/join are manual (need name/code)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, name]);
+  }, [mode, name, screen]);
 
   useEffect(() => {
     return () => {
@@ -175,15 +194,15 @@ function Menu({
     <div className="overlay" style={{ position: "static", minHeight: "100vh" }}>
       <div className="modal">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2>🛒 LMAO — Møøbas</h2>
+          <h2>LMAO — League of Møøbas</h2>
           <button className="btn ghost" style={{ padding: "6px 12px" }} onClick={onBack}>
-            ✕ Store
+            Volver
           </button>
         </div>
-        <div className="sub">Enter a summoner name, then pick how you want to play.</div>
+        <div className="sub">Introduce un nombre y elige cómo quieres jugar.</div>
 
         <div className="field">
-          <label>Your Name</label>
+          <label>Tu nombre</label>
           <input
             value={nm}
             maxLength={16}
@@ -195,40 +214,41 @@ function Menu({
 
         <div className="row" style={{ marginBottom: 16 }}>
           <button className={"btn " + (tab === "solo" ? "primary" : "ghost")} onClick={() => setTab("solo")}>
-            🤖 Vs Bots
+            Vs Bots
           </button>
           <button className={"btn " + (tab === "host" ? "green" : "ghost")} onClick={() => setTab("host")}>
-            🏠 Host
+            Crear sala
           </button>
           <button className={"btn " + (tab === "join" ? "blue" : "ghost")} onClick={() => setTab("join")}>
-            🔑 Join
+            Unirse
           </button>
         </div>
 
         {tab === "solo" && (
           <>
             <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>
-              Jump straight into a match against AI bots. No internet friends required (we understand).
+              Entra directo a una partida contra bots con un campeón asignado. Sin esperas ni salas.
             </p>
             <button className="btn primary" style={{ width: "100%" }} disabled={!valid} onClick={() => onSolo(nm.trim())}>
-              ▶ Start Bot Match
+              Jugar contra bots
             </button>
           </>
         )}
         {tab === "host" && (
           <>
             <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>
-              Create a room and get a 5-letter code. Share it with friends — they join, empty seats fill with bots.
+              Crea una sala y consigue un código de 5 letras. Compártelo con tus amigos: los huecos vacíos se
+              rellenan con bots.
             </p>
             <button className="btn green" style={{ width: "100%" }} disabled={!valid} onClick={() => onHost(nm.trim())}>
-              🏠 Create Room
+              Crear sala
             </button>
           </>
         )}
         {tab === "join" && (
           <>
             <div className="field">
-              <label>Room Code</label>
+              <label>Código de sala</label>
               <input
                 className="code-input"
                 value={code}
@@ -243,7 +263,7 @@ function Menu({
               disabled={!valid || code.length < 4}
               onClick={() => onJoin(code, nm.trim())}
             >
-              🔑 Join Room
+              Unirse a la sala
             </button>
           </>
         )}

@@ -438,7 +438,7 @@ function drawZone(ctx: CanvasRenderingContext2D, z: ZoneSnap, time: number) {
     ctx.globalAlpha = 1;
     ctx.font = "18px serif";
     ctx.textAlign = "center";
-    ctx.fillText(z.sp?.includes("teemoo") ? "🍄" : "🦷", z.x, z.y + 6);
+    ctx.fillText(z.sp?.includes("teemoo") ? "M" : "T", z.x, z.y + 6);
   }
   ctx.restore();
 }
@@ -645,7 +645,7 @@ function drawChampion(ctx: CanvasRenderingContext2D, c: ChampSnap, isLocal: bool
   ctx.font = "26px serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(def?.emoji || "❓", c.x, c.y + 1);
+  ctx.fillText(def?.glyph || "?", c.x, c.y + 1);
   ctx.textBaseline = "alphabetic";
   ctx.restore();
 
@@ -665,7 +665,7 @@ function drawChampion(ctx: CanvasRenderingContext2D, c: ChampSnap, isLocal: bool
     ctx.fillStyle = "#ffd23f";
     ctx.font = "16px serif";
     ctx.textAlign = "center";
-    ctx.fillText(cc.k === "airborne" ? "💫" : cc.k === "stun" ? "⭐" : "🕸️", c.x, c.y - 40);
+    ctx.fillText(cc.k === "airborne" ? "AIR" : cc.k === "stun" ? "STUN" : "ROOT", c.x, c.y - 40);
   }
 
   // Bars: HP + mana.
