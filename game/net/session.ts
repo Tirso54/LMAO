@@ -42,6 +42,7 @@ export interface GameSession {
 
 const DEFAULT_CONFIG: GameConfig = {
   teamSize: 3,
+  enemyBots: 3,
   botFill: true,
   difficulty: "normal",
   minionsEnabled: true,
@@ -215,7 +216,11 @@ export class HostSession implements GameSession {
   }
 
   private buildFullSlots(): PlayerSlot[] {
-    const size = this.lobby.config.teamSize;
+    const cfg = this.lobby.config;
+    // The host's team gets `teamSize`; the opposing team gets `enemyBots`.
+    const hostSlot = this.lobby.slots.find((s) => s.playerId === "host");
+    const hostTeam: Team = hostSlot?.team || "blue";
+    const targetFor = (team: Team) => (team === hostTeam ? cfg.teamSize : cfg.enemyBots);
     const humans = this.lobby.slots.map((s) => ({ ...s }));
     const full: PlayerSlot[] = [];
     let botN = 0;
@@ -223,8 +228,9 @@ export class HostSession implements GameSession {
     for (const team of ["blue", "red"] as Team[]) {
       const teamHumans = humans.filter((h) => h.team === team);
       for (const h of teamHumans) full.push(h);
-      if (this.lobby.config.botFill) {
-        for (let i = teamHumans.length; i < size; i++) {
+      if (cfg.botFill) {
+        const target = Math.max(targetFor(team), teamHumans.length);
+        for (let i = teamHumans.length; i < target; i++) {
           const cid = CHAMPION_IDS.find((c) => !takenChamps.has(c)) || CHAMPION_IDS[botN % CHAMPION_IDS.length];
           takenChamps.add(cid);
           full.push({ playerId: `bot:${botN}`, name: BOT_NAMES[botN % BOT_NAMES.length], team, championId: cid, isBot: true, ready: true, connected: true });

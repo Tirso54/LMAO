@@ -182,6 +182,133 @@ input {
   filter: saturate(0.7);
 }
 
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+.badge {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--brand-yellow);
+  background: rgba(176, 154, 85, 0.08);
+  border: 1px solid rgba(176, 154, 85, 0.3);
+  padding: 5px 12px;
+  border-radius: 20px;
+}
+
+/* ---- Top-down arena preview on the landing hero ---- */
+.arena-preview {
+  max-width: 720px;
+  margin: 4px auto 30px;
+  padding: 10px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(20, 40, 26, 0.6), rgba(10, 20, 14, 0.6));
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+.ap-field {
+  position: relative;
+  height: 220px;
+  border-radius: 12px;
+  overflow: hidden;
+  background:
+    radial-gradient(120px 120px at 20% 30%, rgba(120, 190, 120, 0.12), transparent 70%),
+    radial-gradient(140px 140px at 75% 65%, rgba(120, 190, 120, 0.12), transparent 70%),
+    linear-gradient(180deg, #163a20, #1d4a29 50%, #143318);
+}
+.ap-road {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 46px;
+  transform: translateY(-50%);
+  background: linear-gradient(180deg, #6e5230, #8a6a3e 50%, #6e5230);
+  border-top: 3px solid rgba(40, 90, 50, 0.85);
+  border-bottom: 3px solid rgba(40, 90, 50, 0.85);
+}
+.ap-base {
+  position: absolute;
+  top: 8%;
+  bottom: 8%;
+  width: 120px;
+  border-radius: 14px;
+}
+.ap-base.blue {
+  left: 10px;
+  background: rgba(40, 80, 140, 0.22);
+  border: 1px solid rgba(74, 127, 181, 0.5);
+}
+.ap-base.red {
+  right: 10px;
+  background: rgba(150, 45, 45, 0.22);
+  border: 1px solid rgba(160, 73, 71, 0.5);
+}
+.ap-nexus {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border-radius: 4px;
+}
+.ap-base.blue .ap-nexus {
+  background: #4a7fb5;
+  box-shadow: 0 0 22px 4px rgba(74, 127, 181, 0.7);
+  animation: apPulse 2.4s ease-in-out infinite;
+}
+.ap-base.red .ap-nexus {
+  background: #a04947;
+  box-shadow: 0 0 22px 4px rgba(160, 73, 71, 0.7);
+  animation: apPulse 2.4s ease-in-out infinite 1.2s;
+}
+.ap-bush {
+  position: absolute;
+  width: 44px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #1b5029, #123a1e);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
+}
+.ap-champ {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #ffd23f;
+}
+.ap-champ.blue {
+  background: #3aa0ff;
+  box-shadow: 0 0 12px rgba(58, 160, 255, 0.7);
+  animation: apDriftB 5s ease-in-out infinite;
+}
+.ap-champ.red {
+  background: #ff5a52;
+  box-shadow: 0 0 12px rgba(255, 90, 82, 0.7);
+  animation: apDriftR 6s ease-in-out infinite;
+}
+@keyframes apPulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.5); }
+}
+@keyframes apDriftB {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(40px, -14px); }
+}
+@keyframes apDriftR {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-34px, 16px); }
+}
+@media (max-width: 560px) {
+  .ap-field { height: 160px; }
+  .ap-base { width: 84px; }
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);

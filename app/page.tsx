@@ -23,16 +23,42 @@ export default function LandingPage() {
       </header>
 
       <section className="hero">
-        <div className="champ-strip">Y T A G J L B D</div>
+        <div className="badge-row">
+          <span className="badge">Gratis</span>
+          <span className="badge">Sin instalación</span>
+          <span className="badge">Multijugador online</span>
+          <span className="badge">Mapa abierto</span>
+        </div>
         <h1>
           LMAO — <span className="accent">League of Møøbas</span>
         </h1>
         <p className="tagline">
-          Un MOBA 5v5 para jugar directo en el navegador. Elige a tu campeón, sube de nivel con tus
-          minions, derriba torretas y destruye el <b>Nexo</b> enemigo. Gratis, sin instalación y sin
-          servidores: el anfitrión crea una sala, tus amigos entran con un código y los huecos vacíos
-          los rellenan bots.
+          Un MOBA para jugar directo en el navegador, ahora en un <b>mapa mucho más abierto</b>. Elige a tu
+          campeón, sube de nivel con tus minions, flanquea por la hierba, derriba torretas y destruye el{" "}
+          <b>Nexo</b> enemigo. Crea una sala y elige cuántos bots quieres en tu equipo y en el rival.
         </p>
+
+        {/* Top-down preview of the new open arena. */}
+        <div className="arena-preview" aria-hidden="true">
+          <div className="ap-field">
+            <div className="ap-base blue">
+              <span className="ap-nexus" />
+            </div>
+            <div className="ap-road" />
+            <div className="ap-base red">
+              <span className="ap-nexus" />
+            </div>
+            <span className="ap-bush" style={{ top: "18%", left: "34%" }} />
+            <span className="ap-bush" style={{ top: "70%", left: "44%" }} />
+            <span className="ap-bush" style={{ top: "30%", left: "62%" }} />
+            <span className="ap-bush" style={{ top: "62%", left: "24%" }} />
+            <span className="ap-bush" style={{ top: "24%", left: "50%" }} />
+            <span className="ap-champ blue" style={{ top: "48%", left: "30%" }} />
+            <span className="ap-champ red" style={{ top: "52%", left: "66%" }} />
+            <span className="ap-champ red" style={{ top: "38%", left: "58%" }} />
+          </div>
+        </div>
+
         <div className="mode-row">
           <button className="btn primary play-cta" onClick={() => go("solo")}>
             Jugar ahora

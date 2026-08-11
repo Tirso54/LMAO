@@ -35,10 +35,12 @@ export default function Lobby({
   }, [chat]);
 
   const takenChamps = new Set(lobby.slots.filter((s) => s.playerId !== myId).map((s) => s.championId));
-  const size = lobby.config.teamSize;
+  const hostTeam: Team = lobby.slots.find((s) => s.playerId === "host")?.team || "blue";
+  const targetFor = (team: Team) => (team === hostTeam ? lobby.config.teamSize : lobby.config.enemyBots);
 
   const teamSlots = (team: Team) => {
     const humans = lobby.slots.filter((s) => s.team === team);
+    const size = targetFor(team);
     const arr: (typeof lobby.slots[0] | null)[] = [...humans];
     while (arr.length < size) arr.push(null);
     return arr.slice(0, Math.max(size, humans.length));
@@ -93,10 +95,14 @@ export default function Lobby({
 
           {isHost && (
             <div style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 14, padding: 14 }}>
-              <div style={{ fontWeight: 800, marginBottom: 10 }}>Match Settings (Host)</div>
+              <div style={{ fontWeight: 800, marginBottom: 10 }}>Ajustes de la sala (Host)</div>
               <div className="field" style={{ marginBottom: 10 }}>
-                <label>Team Size: {size}v{size}</label>
-                <input type="range" min={1} max={5} value={size} style={{ width: "100%" }} onChange={(e) => session.setConfig?.({ teamSize: Number(e.target.value) })} />
+                <label>Tu equipo: <b>{lobby.config.teamSize}</b> jugadores</label>
+                <input type="range" min={1} max={5} value={lobby.config.teamSize} style={{ width: "100%" }} onChange={(e) => session.setConfig?.({ teamSize: Number(e.target.value) })} />
+              </div>
+              <div className="field" style={{ marginBottom: 10 }}>
+                <label>Bots enemigos: <b>{lobby.config.enemyBots}</b></label>
+                <input type="range" min={1} max={5} value={lobby.config.enemyBots} style={{ width: "100%" }} onChange={(e) => session.setConfig?.({ enemyBots: Number(e.target.value) })} />
               </div>
               <div className="field" style={{ marginBottom: 10 }}>
                 <label>Bot Difficulty</label>

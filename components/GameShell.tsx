@@ -49,10 +49,10 @@ export default function GameShell() {
   }, []);
 
   const startHost = useCallback(
-    async (solo: boolean, nm: string, autoStart = false) => {
+    async (solo: boolean, nm: string, autoStart = false, config?: Partial<GameConfig>) => {
       setScreen("connecting");
       setConnectingMsg(solo ? "Preparando la arena…" : "Abriendo tu sala al mundo…");
-      const s = new HostSession(nm, solo);
+      const s = new HostSession(nm, solo, config);
       wire(s);
       try {
         await s.startNetworking();
@@ -126,8 +126,8 @@ export default function GameShell() {
           setName(n);
           localStorage.setItem("lmao_name", n);
         }}
-        onSolo={(n) => startHost(true, n)}
-        onHost={(n) => startHost(false, n)}
+        onSolo={(n, cfg) => startHost(true, n, false, cfg)}
+        onHost={(n, cfg) => startHost(false, n, false, cfg)}
         onJoin={(code, n) => startJoin(code, n)}
         onBack={() => router.push("/")}
       />
@@ -178,8 +178,8 @@ function Menu({
   name: string;
   error: string;
   onName: (n: string) => void;
-  onSolo: (n: string) => void;
-  onHost: (n: string) => void;
+  onSolo: (n: string, cfg: Partial<GameConfig>) => void;
+  onHost: (n: string, cfg: Partial<GameConfig>) => void;
   onJoin: (code: string, n: string) => void;
   onBack: () => void;
 }) {
@@ -188,7 +188,19 @@ function Menu({
   const [tab, setTab] = useState<"solo" | "host" | "join">(
     mode === "host" ? "host" : mode === "join" ? "join" : "solo"
   );
+  // Room setup: how many bots on your team, how many enemy bots.
+  const [allyBots, setAllyBots] = useState(2);
+  const [enemyBots, setEnemyBots] = useState(3);
+  const [minions, setMinions] = useState(true);
+  const [difficulty, setDifficulty] = useState<GameConfig["difficulty"]>("normal");
   const valid = nm.trim().length >= 2;
+  const cfg = (): Partial<GameConfig> => ({
+    teamSize: allyBots + 1,
+    enemyBots,
+    minionsEnabled: minions,
+    difficulty,
+    botFill: true,
+  });
 
   return (
     <div className="overlay" style={{ position: "static", minHeight: "100vh" }}>
@@ -224,12 +236,25 @@ function Menu({
           </button>
         </div>
 
+        {(tab === "solo" || tab === "host") && (
+          <RoomSetup
+            allyBots={allyBots}
+            enemyBots={enemyBots}
+            minions={minions}
+            difficulty={difficulty}
+            onAllyBots={setAllyBots}
+            onEnemyBots={setEnemyBots}
+            onMinions={setMinions}
+            onDifficulty={setDifficulty}
+          />
+        )}
+
         {tab === "solo" && (
           <>
             <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>
               Entra directo a una partida contra bots con un campeón asignado. Sin esperas ni salas.
             </p>
-            <button className="btn primary" style={{ width: "100%" }} disabled={!valid} onClick={() => onSolo(nm.trim())}>
+            <button className="btn primary" style={{ width: "100%" }} disabled={!valid} onClick={() => onSolo(nm.trim(), cfg())}>
               Jugar contra bots
             </button>
           </>
@@ -238,9 +263,9 @@ function Menu({
           <>
             <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>
               Crea una sala y consigue un código de 5 letras. Compártelo con tus amigos: los huecos vacíos se
-              rellenan con bots.
+              rellenan con bots según lo que elijas arriba.
             </p>
-            <button className="btn green" style={{ width: "100%" }} disabled={!valid} onClick={() => onHost(nm.trim())}>
+            <button className="btn green" style={{ width: "100%" }} disabled={!valid} onClick={() => onHost(nm.trim(), cfg())}>
               Crear sala
             </button>
           </>
@@ -270,6 +295,71 @@ function Menu({
 
         {error && <div className="err">{error}</div>}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Room setup: pick how many bots on your team and how many enemy bots.
+// ---------------------------------------------------------------------------
+function RoomSetup({
+  allyBots,
+  enemyBots,
+  minions,
+  difficulty,
+  onAllyBots,
+  onEnemyBots,
+  onMinions,
+  onDifficulty,
+}: {
+  allyBots: number;
+  enemyBots: number;
+  minions: boolean;
+  difficulty: GameConfig["difficulty"];
+  onAllyBots: (n: number) => void;
+  onEnemyBots: (n: number) => void;
+  onMinions: (b: boolean) => void;
+  onDifficulty: (d: GameConfig["difficulty"]) => void;
+}) {
+  return (
+    <div
+      style={{
+        background: "var(--bg-2)",
+        border: "1px solid var(--border)",
+        borderRadius: 12,
+        padding: 14,
+        marginBottom: 16,
+      }}
+    >
+      <div style={{ fontWeight: 800, marginBottom: 10, fontSize: 15 }}>Configuración de la partida</div>
+
+      <div className="field" style={{ marginBottom: 12 }}>
+        <label>
+          Compañeros bot (tu equipo): <b style={{ color: "var(--green)" }}>{allyBots}</b> — jugáis {allyBots + 1}
+        </label>
+        <input type="range" min={0} max={4} value={allyBots} style={{ width: "100%" }} onChange={(e) => onAllyBots(Number(e.target.value))} />
+      </div>
+
+      <div className="field" style={{ marginBottom: 12 }}>
+        <label>
+          Bots enemigos: <b style={{ color: "var(--red)" }}>{enemyBots}</b>
+        </label>
+        <input type="range" min={1} max={5} value={enemyBots} style={{ width: "100%" }} onChange={(e) => onEnemyBots(Number(e.target.value))} />
+      </div>
+
+      <div className="field" style={{ marginBottom: 12 }}>
+        <label>Dificultad de los bots</label>
+        <select value={difficulty} onChange={(e) => onDifficulty(e.target.value as GameConfig["difficulty"])}>
+          <option value="casual">Fácil (bots despistados)</option>
+          <option value="normal">Normal</option>
+          <option value="savage">Difícil (bots con cafeína)</option>
+        </select>
+      </div>
+
+      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
+        <input type="checkbox" checked={minions} onChange={(e) => onMinions(e.target.checked)} />
+        Oleadas de minions
+      </label>
     </div>
   );
 }

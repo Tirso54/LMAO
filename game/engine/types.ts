@@ -244,7 +244,8 @@ export interface PlayerSlot {
 }
 
 export interface GameConfig {
-  teamSize: number; // per team
+  teamSize: number; // target size of YOUR team (you + ally bots)
+  enemyBots: number; // target size of the ENEMY team (bots)
   botFill: boolean;
   difficulty: "casual" | "normal" | "savage";
   minionsEnabled: boolean;
