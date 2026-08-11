@@ -52,8 +52,31 @@ export default function Hud({
     return true;
   };
 
+  const toggleFullscreen = () => {
+    if (typeof document === "undefined") return;
+    if (document.fullscreenElement) document.exitFullscreen?.();
+    else document.documentElement.requestFullscreen?.();
+  };
+
+  const surrender = () => {
+    if (typeof window === "undefined" || window.confirm("¿Rendirse y volver al menú?")) onExit();
+  };
+
   return (
     <>
+      {/* Top-left control bar (rendirse / controles / ventana) */}
+      <div style={controlBar}>
+        <button style={ctrlBtn} onClick={surrender} title="Rendirse y volver al menú">
+          <span aria-hidden="true">🏳️</span> Rendirse
+        </button>
+        <button style={ctrlBtn} onClick={() => setShowHelp(!showHelp)} title="Ver los controles">
+          <span aria-hidden="true">⌨</span> Controles
+        </button>
+        <button style={ctrlBtn} onClick={toggleFullscreen} title="Pantalla completa / ventana">
+          <span aria-hidden="true">⛶</span> Ventana
+        </button>
+      </div>
+
       {/* Top scoreboard */}
       {snap && (
         <div style={topBar}>
@@ -61,7 +84,7 @@ export default function Hud({
           <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>VS</span>
           <div style={{ textAlign: "center", minWidth: 70 }}>
             <div style={{ fontWeight: 900, fontSize: 20, fontVariantNumeric: "tabular-nums" }}>{mmss(snap.time)}</div>
-            <div style={{ fontSize: 10, color: "var(--ink-dim)" }}>Wave {snap.wave}</div>
+            <div style={{ fontSize: 10, color: "var(--ink-dim)" }}>Oleada {snap.wave}</div>
           </div>
           <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>VS</span>
           <div style={{ fontWeight: 900, fontSize: 26, color: "var(--red)", minWidth: 34, textAlign: "center" }}>{snap.teamKills.red}</div>
@@ -90,10 +113,10 @@ export default function Hud({
           {snap.killFeed.slice(-6).map((k) => (
             <div key={k.id} style={{ background: "rgba(0,0,0,0.55)", borderRadius: 6, padding: "3px 8px", fontSize: 12, marginBottom: 3 }}>
               <b style={{ color: k.killerTeam === "blue" ? "var(--blue)" : "var(--red)" }}>{k.killer}</b>
-              {k.isTurret ? " destroyed " : k.isNexus ? " DESTROYED " : " killed "}
+              {k.isTurret ? " derribó " : k.isNexus ? " DESTRUYÓ " : " eliminó a "}
               <b style={{ color: k.victimTeam === "blue" ? "var(--blue)" : "var(--red)" }}>{k.victim}</b>
               {k.multi ? <span style={{ color: "var(--brand-yellow)" }}> ×{k.multi}!</span> : null}
-              {k.shutdown ? <span style={{ color: "var(--brand-orange)" }}> SHUTDOWN</span> : null}
+              {k.shutdown ? <span style={{ color: "var(--brand-orange)" }}> ¡CORTE!</span> : null}
             </div>
           ))}
         </div>
@@ -122,7 +145,8 @@ export default function Hud({
             <div style={statGrid}>
               <Stat label="AD" v={me.ad} /><Stat label="AP" v={me.ap} />
               <Stat label="AR" v={me.armor} /><Stat label="MR" v={me.mr} />
-              <Stat label="AS" v={me.as.toFixed(2)} /><Stat label="Crit" v={Math.round(me.crit * 100) + "%"} />
+              <Stat label="AS" v={me.as.toFixed(2)} /><Stat label="MS" v={me.ms} />
+              <Stat label="Crit" v={Math.round(me.crit * 100) + "%"} /><Stat label="CDR" v={Math.round(me.cdr * 100) + "%"} />
             </div>
           </div>
 
@@ -130,7 +154,7 @@ export default function Hud({
           <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
             <div style={passiveIcon} title={`${def.passive.name}: ${def.passive.desc}`}>
               <div style={{ fontSize: 26 }}>{def.passive.glyph}</div>
-              <div style={{ fontSize: 9, color: "var(--ink-dim)" }}>Passive</div>
+              <div style={{ fontSize: 9, color: "var(--ink-dim)" }}>Pasiva</div>
             </div>
             {def.abilities.map((a, i) => {
               const ab = me.ab[i];
@@ -185,7 +209,7 @@ export default function Hud({
 
       {/* Level-up hint */}
       {me && me.points > 0 && (
-        <div style={pointsHint}>{me.points} ability point{me.points > 1 ? "s" : ""}! Click the + (or Ctrl+Q/W/E/R)</div>
+        <div style={pointsHint}>¡{me.points} punto{me.points > 1 ? "s" : ""} de habilidad! Pulsa el ＋ (o Ctrl+Q/W/E/R)</div>
       )}
 
       {/* Countdown */}
@@ -226,7 +250,7 @@ function TeamScore({ team, kills, gold, right }: { team: Team; kills: number; go
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: right ? "flex-end" : "flex-start" }}>
       <div style={{ fontWeight: 900, fontSize: 20, color: team === "blue" ? "var(--blue)" : "var(--red)" }}>
-        {team === "blue" ? "Blue" : "Red"} · {kills} kills
+        {team === "blue" ? "Azul" : "Rojo"} · {kills} bajas
       </div>
       <div style={{ fontSize: 12, color: "var(--brand-yellow)" }}>{gold.toLocaleString()}</div>
     </div>
@@ -333,11 +357,13 @@ function HelpModal({ onClose }: { onClose: () => void }) {
 
 // ---- styles ----
 const topBar: React.CSSProperties = { position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 14, alignItems: "center", background: "rgba(0,0,0,0.6)", borderRadius: 12, padding: "6px 20px", border: "1px solid var(--border)" };
+const controlBar: React.CSSProperties = { position: "absolute", top: 8, left: 8, display: "flex", gap: 6, zIndex: 61 };
+const ctrlBtn: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, background: "rgba(0,0,0,0.6)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--ink)", fontSize: 12, fontWeight: 700, padding: "6px 12px", cursor: "pointer" };
 const rosterWrap: React.CSSProperties = { position: "absolute", top: 70, left: 8 };
 const killFeed: React.CSSProperties = { position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)", width: 340, textAlign: "center" };
 const bottomBar: React.CSSProperties = { position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 14, alignItems: "flex-end", background: "rgba(0,0,0,0.5)", borderRadius: 14, padding: "10px 16px", border: "1px solid var(--border)" };
 const portrait: React.CSSProperties = { width: 230 };
-const statGrid: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3, marginTop: 6 };
+const statGrid: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 3, marginTop: 6 };
 const lvlBadge: React.CSSProperties = { position: "absolute", bottom: -4, right: -6, background: "#0d1220", border: "2px solid var(--brand-yellow)", color: "var(--brand-yellow)", borderRadius: "50%", width: 20, height: 20, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" };
 const abilityBox: React.CSSProperties = { position: "relative", width: 58, height: 58, borderRadius: 10, background: "var(--panel-2)", border: "2px solid var(--brand-orange)", display: "flex", alignItems: "center", justifyContent: "center" };
 const passiveIcon: React.CSSProperties = { width: 48, height: 58, borderRadius: 10, background: "var(--panel)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" };

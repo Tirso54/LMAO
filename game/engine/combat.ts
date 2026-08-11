@@ -214,8 +214,8 @@ export function killEntity(state: GameState, target: Entity, killerId: number | 
     // Team gold bounty split-ish: give killer + nearby.
     state.killFeed.push({
       id: state.nextFxId++,
-      killer: killer && isChampion(killer) ? killer.displayName : "Minions",
-      victim: `${t.team === "blue" ? "Blue" : "Red"} Turret`,
+      killer: killer && isChampion(killer) ? killer.displayName : "Los minions",
+      victim: `Torreta ${t.team === "blue" ? "Azul" : "Roja"}`,
       killerTeam: enemyTeam(t.team),
       victimTeam: t.team,
       time: state.time,
@@ -237,8 +237,8 @@ export function killEntity(state: GameState, target: Entity, killerId: number | 
     state.fx.push({ t: "death", x: n.pos.x, y: n.pos.y, team: n.team, radius: 160 });
     state.killFeed.push({
       id: state.nextFxId++,
-      killer: "The Enemy Team",
-      victim: `${n.team === "blue" ? "Blue" : "Red"} Nexus`,
+      killer: "El equipo enemigo",
+      victim: `Nexo ${n.team === "blue" ? "Azul" : "Rojo"}`,
       killerTeam: enemyTeam(n.team),
       victimTeam: n.team,
       time: state.time,

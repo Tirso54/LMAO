@@ -12,7 +12,7 @@ import GamePlay from "@/components/GamePlay";
 type Screen = "menu" | "connecting" | "lobby" | "game";
 
 function getName(): string {
-  if (typeof window === "undefined") return "Player";
+  if (typeof window === "undefined") return "Jugador";
   return localStorage.getItem("lmao_name") || "";
 }
 
