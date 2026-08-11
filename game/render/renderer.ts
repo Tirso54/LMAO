@@ -99,7 +99,7 @@ export class FxSystem {
           const a = (i / 14) * Math.PI * 2;
           this.particles.push({ x: e.x, y: e.y, vx: Math.cos(a) * 90, vy: Math.sin(a) * 90 - 30, life: 0.7, max: 0.7, color: "#ffd23f", size: 4, kind: "spark" });
         }
-        this.particles.push({ x: e.x, y: e.y - 40, vx: 0, vy: -30, life: 1.0, max: 1.0, color: "#ffd23f", size: 15, kind: "text", text: "LEVEL UP!" });
+        this.particles.push({ x: e.x, y: e.y - 40, vx: 0, vy: -30, life: 1.0, max: 1.0, color: "#ffd23f", size: 15, kind: "text", text: "¡SUBE NIVEL!" });
         break;
       case "death":
         for (let i = 0; i < 20; i++) {
@@ -999,7 +999,7 @@ function drawChampion(ctx: CanvasRenderingContext2D, c: ChampSnap, isLocal: bool
     ctx.fillStyle = "#ffd23f";
     ctx.font = "16px serif";
     ctx.textAlign = "center";
-    ctx.fillText(cc.k === "airborne" ? "AIR" : cc.k === "stun" ? "STUN" : "ROOT", c.x, c.y - 40);
+    ctx.fillText(cc.k === "airborne" ? "AIRE" : cc.k === "stun" ? "ATURDIDO" : "ANCLADO", c.x, c.y - 40);
   }
 
   // Bars: HP + mana.
