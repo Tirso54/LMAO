@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "LMAO — League of Møøbas: the Amazingly Off-brand MOBA. A bargain-bin League of Legends knockoff you can actually play online.",
+  "engines": {
+    "node": ">=18.17.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

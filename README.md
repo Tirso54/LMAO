@@ -53,10 +53,29 @@ npm run build && npm run start
 
 Open the store, hit **Play Now (vs Bots)**, or **Host a Room** and share the code.
 
-### Deploy
+### Deploy to Vercel
 
-It's a standard Next.js app — deploy to Vercel (or any Node host). All real-time gameplay runs peer-to-peer
-in the browsers via WebRTC using PeerJS's public broker for signaling, so **no backend/game server is needed.**
+This is a **zero-config Next.js app** — Vercel auto-detects the framework, build command, and output.
+No environment variables, no database, no serverless functions to configure.
+
+**Option A — Vercel dashboard:**
+1. Push this repo to GitHub (already done if you're reading this on GitHub).
+2. Go to [vercel.com/new](https://vercel.com/new) and import the repo.
+3. Leave every setting on its default (Framework Preset: **Next.js**, Build Command: `next build`,
+   Output: managed automatically). Click **Deploy**.
+4. You'll get a `*.vercel.app` URL — that's the whole game, portal and all.
+
+**Option B — Vercel CLI:**
+```bash
+npm i -g vercel
+vercel        # first deploy, follow the prompts
+vercel --prod # promote to production
+```
+
+All real-time gameplay runs peer-to-peer in the browsers via WebRTC, using PeerJS's public broker
+purely for signaling (finding peers) — **no backend/game server or database is needed**, so the
+Vercel deployment is 100% static/serverless-friendly. Hosting elsewhere (Netlify, Node server, etc.)
+works the same way — it's a standard `next build && next start` app.
 
 ## 🧱 Architecture
 
