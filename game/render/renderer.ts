@@ -1,7 +1,7 @@
 import { Snapshot, ChampSnap, MinionSnap, StructSnap, ProjSnap, ZoneSnap } from "../net/protocol";
 import { FxEvent, Team } from "../engine/types";
 import { CHAMPIONS } from "../engine/champions";
-import { WORLD, STRUCTURES, LANE_Y } from "../engine/constants";
+import { WORLD, STRUCTURES, LANE_Y, ROAD_HALF } from "../engine/constants";
 
 export interface Camera {
   x: number;
@@ -188,34 +188,78 @@ export class FxSystem {
 // ---------------------------------------------------------------------------
 // World / scene drawing
 // ---------------------------------------------------------------------------
-// Deterministic decorative scatter (bushes, candles) computed once.
+// Deterministic decorative scatter (bushes, candles, clearings) computed once.
 interface Deco { x: number; y: number; r: number; sway: number; }
 let BUSHES: Deco[] | null = null;
 let CANDLES: { x: number; y: number }[] | null = null;
+let CLEARINGS: { x: number; y: number; r: number }[] | null = null;
+
+// Keep decor clear of the central road and the two base areas.
+function inBaseZone(x: number): boolean {
+  return x < 620 || x > WORLD.width - 620;
+}
+function onRoad(y: number): boolean {
+  return Math.abs(y - LANE_Y) < ROAD_HALF + 40;
+}
+
 function buildDeco() {
   if (BUSHES) return;
   const rng = mulberry(1337);
   BUSHES = [];
   const top = WORLD.laneTop;
   const bot = WORLD.laneBottom;
-  // Scatter bushes in the off-lane grass (above and below the road).
-  for (let i = 0; i < 260; i++) {
+
+  // Circular bush clusters spread across the whole open field (like the
+  // reference art): groups of overlapping blobs that read as tactical cover.
+  const clusterCount = 46;
+  for (let c = 0; c < clusterCount; c++) {
+    let cx = 0, cy = 0;
+    for (let tries = 0; tries < 12; tries++) {
+      cx = 200 + rng() * (WORLD.width - 400);
+      cy = top + 60 + rng() * (bot - top - 120);
+      if (!inBaseZone(cx) && !onRoad(cy)) break;
+    }
+    const blobs = 3 + Math.floor(rng() * 4);
+    for (let b = 0; b < blobs; b++) {
+      const a = rng() * Math.PI * 2;
+      const rad = rng() * 60;
+      BUSHES.push({
+        x: cx + Math.cos(a) * rad,
+        y: cy + Math.sin(a) * rad,
+        r: 30 + rng() * 40,
+        sway: rng() * Math.PI * 2,
+      });
+    }
+  }
+  // Loose scatter in the far grass margins (beyond the playable band).
+  for (let i = 0; i < 120; i++) {
     const x = rng() * (WORLD.width + 400) - 200;
     const below = rng() > 0.5;
     const band = below ? [bot + 40, WORLD.height + 380] : [-380, top - 40];
     const y = band[0] + rng() * (band[1] - band[0]);
-    BUSHES.push({ x, y, r: 26 + rng() * 40, sway: rng() * Math.PI * 2 });
+    BUSHES.push({ x, y, r: 26 + rng() * 44, sway: rng() * Math.PI * 2 });
   }
-  // A few clusters along the road edges too.
-  for (let i = 0; i < 40; i++) {
-    const x = rng() * WORLD.width;
-    const y = (rng() > 0.5 ? bot + 12 : top - 12) + (rng() - 0.5) * 24;
-    BUSHES.push({ x, y, r: 22 + rng() * 26, sway: rng() * Math.PI * 2 });
+
+  // Faint mossy "clearings" (open circles) to break up the field.
+  CLEARINGS = [];
+  for (let i = 0; i < 10; i++) {
+    let x = 0, y = 0;
+    for (let tries = 0; tries < 10; tries++) {
+      x = 700 + rng() * (WORLD.width - 1400);
+      y = top + 120 + rng() * (bot - top - 240);
+      if (!onRoad(y)) break;
+    }
+    CLEARINGS.push({ x, y, r: 120 + rng() * 130 });
   }
+
   CANDLES = [];
-  for (let i = 0; i < 14; i++) {
-    const x = 500 + rng() * (WORLD.width - 1000);
-    const y = (rng() > 0.5 ? bot + 120 : top - 120) + (rng() - 0.5) * 200;
+  for (let i = 0; i < 18; i++) {
+    let x = 0, y = 0;
+    for (let tries = 0; tries < 10; tries++) {
+      x = 500 + rng() * (WORLD.width - 1000);
+      y = top + 80 + rng() * (bot - top - 160);
+      if (!onRoad(y) && !inBaseZone(x)) break;
+    }
     CANDLES.push({ x, y });
   }
 }
@@ -256,18 +300,38 @@ export function drawWorld(ctx: CanvasRenderingContext2D, time: number) {
   }
   ctx.restore();
 
-  // Dirt lane road with soft grassy shoulders.
-  ctx.fillStyle = "rgba(20,45,26,0.9)";
-  ctx.fillRect(-M, top - 26, WORLD.width + M * 2, bot - top + 52);
-  const road = ctx.createLinearGradient(0, top, 0, bot);
-  road.addColorStop(0, "#7a5c34");
+  // Playable-band boundary (subtle brighter grass inside the arena).
+  const bandGrad = ctx.createLinearGradient(0, top, 0, bot);
+  bandGrad.addColorStop(0, "rgba(60,140,72,0.10)");
+  bandGrad.addColorStop(0.5, "rgba(74,160,90,0.16)");
+  bandGrad.addColorStop(1, "rgba(60,140,72,0.10)");
+  ctx.fillStyle = bandGrad;
+  ctx.fillRect(-M, top, WORLD.width + M * 2, bot - top);
+
+  // Mossy clearings (open circular patches that break up the field).
+  for (const cl of CLEARINGS!) {
+    const g = ctx.createRadialGradient(cl.x, cl.y, cl.r * 0.2, cl.x, cl.y, cl.r);
+    g.addColorStop(0, "rgba(120,190,120,0.10)");
+    g.addColorStop(1, "rgba(120,190,120,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cl.x, cl.y, cl.r, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Central minion road: a narrow dirt ribbon down the middle of the map.
+  const roadTop = LANE_Y - ROAD_HALF;
+  const roadBot = LANE_Y + ROAD_HALF;
+  // Grassy shoulder underneath.
+  ctx.fillStyle = "rgba(20,50,28,0.9)";
+  ctx.fillRect(-M, roadTop - 18, WORLD.width + M * 2, ROAD_HALF * 2 + 36);
+  const road = ctx.createLinearGradient(0, roadTop, 0, roadBot);
+  road.addColorStop(0, "#6e5230");
   road.addColorStop(0.5, "#8a6a3e");
   road.addColorStop(1, "#6e5230");
   ctx.fillStyle = road;
-  ctx.fillRect(-M, top, WORLD.width + M * 2, bot - top);
+  ctx.fillRect(-M, roadTop, WORLD.width + M * 2, ROAD_HALF * 2);
   // Road speckle.
   for (let x = 0; x < WORLD.width; x += 70) {
-    for (let y = top + 20; y < bot; y += 60) {
+    for (let y = roadTop + 18; y < roadBot; y += 54) {
       const r = ((x * 13 + y * 7) % 17) / 17;
       ctx.fillStyle = r > 0.5 ? "rgba(0,0,0,0.06)" : "rgba(255,235,200,0.05)";
       ctx.beginPath();
@@ -277,10 +341,10 @@ export function drawWorld(ctx: CanvasRenderingContext2D, time: number) {
   }
   // Road grass edges.
   ctx.strokeStyle = "rgba(40,90,50,0.85)";
-  ctx.lineWidth = 10;
+  ctx.lineWidth = 8;
   ctx.beginPath();
-  ctx.moveTo(-M, top); ctx.lineTo(WORLD.width + M, top);
-  ctx.moveTo(-M, bot); ctx.lineTo(WORLD.width + M, bot);
+  ctx.moveTo(-M, roadTop); ctx.lineTo(WORLD.width + M, roadTop);
+  ctx.moveTo(-M, roadBot); ctx.lineTo(WORLD.width + M, roadBot);
   ctx.stroke();
 
   // Base platforms (team-tinted stone).

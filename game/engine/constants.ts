@@ -4,14 +4,19 @@ export const TICK_RATE = 30; // authoritative simulation ticks per second
 export const DT = 1 / TICK_RATE;
 export const SNAPSHOT_RATE = 20; // snapshots broadcast per second
 
-// World is a horizontal bridge. Blue base left, red base right.
+// World is a wide open battlefield. Blue base left, red base right.
+// The map is intentionally roomy: a central lane road for minions, but
+// generous open grass above and below so champions can flank and roam.
 export const WORLD = {
   width: 4200,
-  height: 1400,
-  // The playable bridge band (out of these bounds = the poke pit / death).
-  laneTop: 480,
-  laneBottom: 920,
+  height: 1500,
+  // The playable band (out of these bounds = the void / death).
+  laneTop: 150,
+  laneBottom: 1350,
 };
+
+// The central minion road (a narrower ribbon down the middle of the field).
+export const ROAD_HALF = 150;
 
 export const LANE_Y = (WORLD.laneTop + WORLD.laneBottom) / 2;
 
