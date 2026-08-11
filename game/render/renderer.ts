@@ -126,6 +126,19 @@ export class FxSystem {
       case "ping":
         this.particles.push({ x: e.x, y: e.y, vx: 0, vy: 0, life: 1.0, max: 1.0, color: e.color || "#ffd23f", size: 34, kind: "ping" });
         break;
+      case "shot": {
+        // Muzzle flash at the origin plus a couple of sparks toward the target.
+        const ang = Math.atan2((e.y2 ?? e.y) - e.y, (e.x2 ?? e.x) - e.x);
+        const mx = e.x + Math.cos(ang) * 22;
+        const my = e.y + Math.sin(ang) * 22;
+        this.particles.push({ x: mx, y: my, vx: 0, vy: 0, life: 0.16, max: 0.16, color: e.color || "#fff", size: (e.radius || 7) + 3, kind: "flash" });
+        for (let i = 0; i < 3; i++) {
+          const a = ang + (Math.random() - 0.5) * 0.5;
+          const s = 260 + Math.random() * 180;
+          this.particles.push({ x: mx, y: my, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.18, max: 0.18, color: e.color || "#fff", size: 2.5, kind: "spark" });
+        }
+        break;
+      }
     }
   }
 
@@ -149,6 +162,22 @@ export class FxSystem {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
+      } else if (p.kind === "flash") {
+        // Bright muzzle flash: a glowing core that shrinks as it fades.
+        const r = p.size * (0.6 + alpha * 0.8);
+        ctx.save();
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = alpha * 0.6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       } else if (p.kind === "text") {
         ctx.font = `bold ${p.size}px 'Trebuchet MS', sans-serif`;
         ctx.textAlign = "center";
@@ -211,7 +240,7 @@ function buildDeco() {
 
   // Circular bush clusters spread across the whole open field (like the
   // reference art): groups of overlapping blobs that read as tactical cover.
-  const clusterCount = 46;
+  const clusterCount = 72;
   for (let c = 0; c < clusterCount; c++) {
     let cx = 0, cy = 0;
     for (let tries = 0; tries < 12; tries++) {
@@ -242,7 +271,7 @@ function buildDeco() {
 
   // Faint mossy "clearings" (open circles) to break up the field.
   CLEARINGS = [];
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 16; i++) {
     let x = 0, y = 0;
     for (let tries = 0; tries < 10; tries++) {
       x = 700 + rng() * (WORLD.width - 1400);

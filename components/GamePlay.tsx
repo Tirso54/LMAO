@@ -586,7 +586,7 @@ function Joystick({
           transition: "background 0.12s ease",
         }}
       >
-        {active ? "◉" : attack ? "A" : "✛"}
+        {attack ? "A" : "M"}
       </div>
     </div>
   );

@@ -104,7 +104,9 @@ export default function GameShell() {
         setName(nm);
         localStorage.setItem("lmao_name", nm);
       }
-      startHost(true, nm, true);
+      // Go to the lobby champion-select instead of auto-starting with a
+      // random champion, so the player picks their champion first.
+      startHost(true, nm, false);
     }
     // host/join are manual (need name/code)
     // eslint-disable-next-line react-hooks/exhaustive-deps

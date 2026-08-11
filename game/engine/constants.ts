@@ -9,10 +9,10 @@ export const SNAPSHOT_RATE = 20; // snapshots broadcast per second
 // generous open grass above and below so champions can flank and roam.
 export const WORLD = {
   width: 4200,
-  height: 1500,
+  height: 1700,
   // The playable band (out of these bounds = the void / death).
-  laneTop: 150,
-  laneBottom: 1350,
+  laneTop: 140,
+  laneBottom: 1560,
 };
 
 // The central minion road (a narrower ribbon down the middle of the field).
@@ -127,8 +127,8 @@ export const PASSIVE_XP_PER_SEC = 4.2; // ambient XP so the match keeps pace
 export const KILL_GOLD_BASE = 300;
 export const ASSIST_GOLD = 150;
 
-// Respawn seconds by level.
-export const RESPAWN_TIME = (level: number) => Math.min(6 + level * 2.2, 55);
+// Respawn time: a snappy fixed 5 seconds regardless of level.
+export const RESPAWN_TIME = (_level: number) => 5;
 
 // Fountain regen multiplier.
 export const FOUNTAIN_REGEN = 0.15; // fraction of max hp/mana per second
