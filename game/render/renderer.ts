@@ -1065,6 +1065,7 @@ function drawProjectile(ctx: CanvasRenderingContext2D, p: ProjSnap) {
 
 function lightColor(sp?: string): string {
   if (!sp) return "#ffffff";
+  if (sp === "energy_ball") return "#ffe08a"; // free-aim basic-attack ball
   if (sp.startsWith("luux")) return "#ffe98a";
   if (sp.startsWith("ashee")) return "#a9e8ff";
   if (sp.startsWith("blitz")) return "#f6c453";

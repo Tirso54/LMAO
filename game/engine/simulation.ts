@@ -119,6 +119,61 @@ export function applyInput(state: GameState, ownerId: string, input: PlayerInput
   if (input.ping) {
     state.fx.push({ t: "ping", x: input.ping.x, y: input.ping.y, team: champ.team, text: input.ping.kind });
   }
+
+  if (input.shoot) {
+    fireEnergyBall(state, champ, input.shoot.x, input.shoot.y);
+  }
+}
+
+/**
+ * Free-aim energy ball: an always-fires auto-attack skillshot that flies
+ * toward the aim point and damages whatever it hits first, even if no enemy
+ * was in range at the trigger. Respects the champion's basic-attack cooldown.
+ */
+export function fireEnergyBall(state: GameState, champ: Champion, x: number, y: number) {
+  if (!champ.alive || isStunnedOrAirborne(champ)) return;
+  if (champ.attackCooldown > 0) return;
+  const def = CHAMPIONS[champ.championId];
+  let attackSpeed = champ.attackSpeed;
+  for (const b of champ.buffs) if (b.kind === "attackspeed" && b.time > 0) attackSpeed *= 1 + b.magnitude;
+  attackSpeed = clamp(attackSpeed, 0.2, 2.5);
+  const interval = 1 / attackSpeed;
+  champ.attackCooldown = interval;
+  champ.face = Math.atan2(y - champ.pos.y, x - champ.pos.x);
+
+  const dir = norm({ x: x - champ.pos.x, y: y - champ.pos.y });
+  const speed = def.projectileSpeed || 1400;
+  const maxRange = Math.max(champ.attackRange + 250, 700);
+  const isCrit = Math.random() < champ.critChance;
+  const damage = champ.attackDamage * (isCrit ? 1.75 : 1);
+  const proj: Projectile = {
+    id: state.nextProjectileId++,
+    team: champ.team,
+    pos: { x: champ.pos.x, y: champ.pos.y },
+    vel: { x: dir.x * speed, y: dir.y * speed },
+    speed,
+    targetId: null,
+    sourceId: champ.id,
+    damage,
+    damageType: "physical",
+    radius: 16,
+    kind: "skillshot",
+    spellId: "energy_ball",
+    maxRange,
+    traveled: 0,
+    hits: [],
+    pierce: false,
+    crit: isCrit,
+  };
+  state.projectiles.push(proj);
+  state.fx.push({
+    t: "cast",
+    x: champ.pos.x,
+    y: champ.pos.y,
+    team: champ.team,
+    color: def.color,
+    spellId: "energy_ball",
+  });
 }
 
 export function findChampByOwner(state: GameState, ownerId: string): Champion | null {

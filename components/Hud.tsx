@@ -341,8 +341,9 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         </ul>
         <div style={{ fontWeight: 800, margin: "8px 0 4px" }}>Ratón / Teclado</div>
         <ul style={{ lineHeight: 1.8, fontSize: 14, marginTop: 0 }}>
-          <li><b>Clic derecho</b> — mover / atacar · <b>Q W E R</b> — lanzar habilidades</li>
-          <li><b>A</b> ataque-movimiento · <b>S</b> parar · <b>B</b> volver a base</li>
+          <li><b>Clic izquierdo</b> — disparar bola de energía hacia el cursor (siempre dispara)</li>
+          <li><b>Clic derecho</b> — mover / atacar objetivo · <b>Q W E R</b> — lanzar habilidades</li>
+          <li><b>A</b> ataque-movimiento · <b>F</b> disparar libre · <b>S</b> parar · <b>B</b> volver a base</li>
           <li><b>Ctrl+Q/W/E/R</b> — subir nivel · <b>Rueda</b> zoom · <b>Alt+Clic</b> ping</li>
         </ul>
         <div style={{ fontSize: 13, color: "var(--ink-dim)", marginTop: 10 }}>
