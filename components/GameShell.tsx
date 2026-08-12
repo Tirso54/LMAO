@@ -346,9 +346,9 @@ function RoomSetup({
   onDifficulty: (d: GameConfig["difficulty"]) => void;
 }) {
   const DIFFS: { v: GameConfig["difficulty"]; label: string }[] = [
-    { v: "casual", label: "Relajado" },
-    { v: "normal", label: "Normal" },
-    { v: "savage", label: "Sudoroso" },
+    { v: "casual", label: "Fácil" },
+    { v: "normal", label: "Medio" },
+    { v: "savage", label: "Difícil" },
   ];
 
   return (
