@@ -16,9 +16,9 @@ const ROLE_ES: Record<string, string> = {
 };
 
 const DIFFS: { v: GameConfig["difficulty"]; label: string }[] = [
-  { v: "casual", label: "Relajado" },
-  { v: "normal", label: "Normal" },
-  { v: "savage", label: "Sudoroso" },
+  { v: "casual", label: "Fácil" },
+  { v: "normal", label: "Medio" },
+  { v: "savage", label: "Difícil" },
 ];
 
 function Stars({ value, max = 3 }: { value: number; max?: number }) {
