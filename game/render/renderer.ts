@@ -348,33 +348,39 @@ export function drawWorld(ctx: CanvasRenderingContext2D, time: number) {
   const top = WORLD.laneTop;
   const bot = WORLD.laneBottom;
 
-  // Grass field background (generously oversized so the camera never shows void).
-  const M = 2600;
+  // Grass field background (generously oversized so the camera never shows
+  // void). New tone: a lush teal-emerald twilight rift, distinct from the old
+  // flat green — deep at the edges, brighter jade through the middle.
+  const M = 4200;
   const gg = ctx.createLinearGradient(0, -M, 0, WORLD.height + M);
-  gg.addColorStop(0, "#15361f");
-  gg.addColorStop(0.5, "#1c4527");
-  gg.addColorStop(1, "#12301b");
+  gg.addColorStop(0, "#0a2a2c");
+  gg.addColorStop(0.35, "#123f36");
+  gg.addColorStop(0.5, "#175046");
+  gg.addColorStop(0.65, "#123f36");
+  gg.addColorStop(1, "#08211f");
   ctx.fillStyle = gg;
   ctx.fillRect(-M, -M, WORLD.width + M * 2, WORLD.height + M * 2);
 
   // Soft grass mottling (large translucent blobs).
   ctx.save();
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 160; i++) {
     const rng = ((i * 9301 + 49297) % 233280) / 233280;
     const x = (i * 337) % (WORLD.width + 400) - 200;
     const y = ((i * 911) % (WORLD.height + 700)) - 350;
-    ctx.fillStyle = i % 2 ? "rgba(255,255,255,0.015)" : "rgba(0,0,0,0.04)";
+    ctx.fillStyle = i % 2 ? "rgba(150,255,220,0.02)" : "rgba(0,0,0,0.045)";
     ctx.beginPath();
-    ctx.ellipse(x, y, 120 + rng * 120, 70 + rng * 60, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y, 160 + rng * 180, 90 + rng * 90, 0, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
 
-  // Playable-band boundary (subtle brighter grass inside the arena).
+  // Playable field tint — a gentle jade wash across the huge arena. With the
+  // band now spanning nearly the whole world there is no hard boundary line;
+  // it just enriches the ground colour toward the centre of the field.
   const bandGrad = ctx.createLinearGradient(0, top, 0, bot);
-  bandGrad.addColorStop(0, "rgba(60,140,72,0.10)");
-  bandGrad.addColorStop(0.5, "rgba(74,160,90,0.16)");
-  bandGrad.addColorStop(1, "rgba(60,140,72,0.10)");
+  bandGrad.addColorStop(0, "rgba(60,170,140,0.05)");
+  bandGrad.addColorStop(0.5, "rgba(90,200,160,0.10)");
+  bandGrad.addColorStop(1, "rgba(60,170,140,0.05)");
   ctx.fillStyle = bandGrad;
   ctx.fillRect(-M, top, WORLD.width + M * 2, bot - top);
 
@@ -391,12 +397,12 @@ export function drawWorld(ctx: CanvasRenderingContext2D, time: number) {
   const roadTop = LANE_Y - ROAD_HALF;
   const roadBot = LANE_Y + ROAD_HALF;
   // Grassy shoulder underneath.
-  ctx.fillStyle = "rgba(20,50,28,0.9)";
+  ctx.fillStyle = "rgba(12,42,36,0.9)";
   ctx.fillRect(-M, roadTop - 18, WORLD.width + M * 2, ROAD_HALF * 2 + 36);
   const road = ctx.createLinearGradient(0, roadTop, 0, roadBot);
-  road.addColorStop(0, "#6e5230");
-  road.addColorStop(0.5, "#8a6a3e");
-  road.addColorStop(1, "#6e5230");
+  road.addColorStop(0, "#7a5f3a");
+  road.addColorStop(0.5, "#9c7a48");
+  road.addColorStop(1, "#7a5f3a");
   ctx.fillStyle = road;
   ctx.fillRect(-M, roadTop, WORLD.width + M * 2, ROAD_HALF * 2);
   // Road speckle.
@@ -410,7 +416,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, time: number) {
     }
   }
   // Road grass edges.
-  ctx.strokeStyle = "rgba(40,90,50,0.85)";
+  ctx.strokeStyle = "rgba(30,80,66,0.85)";
   ctx.lineWidth = 8;
   ctx.beginPath();
   ctx.moveTo(-M, roadTop); ctx.lineTo(WORLD.width + M, roadTop);
@@ -481,12 +487,12 @@ function drawBasePlatform(ctx: CanvasRenderingContext2D, team: Team) {
   const color = TEAM_COLOR[team];
   const nx = s.nexus.x;
   const fx = s.fountain.x;
-  const minX = Math.min(nx, fx) - 260;
-  const maxX = Math.max(nx, fx) + 260;
+  const minX = Math.min(nx, fx) - 340;
+  const maxX = Math.max(nx, fx) + 340;
   // Base area: a stepped hex-ish shape (narrow tail on the road side, wide
   // flanks around the nexus) so the flanking turrets sit on team ground.
-  const top = LANE_Y - 320;
-  const bot = LANE_Y + 320;
+  const top = LANE_Y - 940;
+  const bot = LANE_Y + 940;
   ctx.save();
   ctx.fillStyle = team === "blue" ? "rgba(40,80,140,0.16)" : "rgba(150,45,45,0.16)";
   ctx.beginPath();

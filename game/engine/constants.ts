@@ -4,98 +4,118 @@ export const TICK_RATE = 30; // authoritative simulation ticks per second
 export const DT = 1 / TICK_RATE;
 export const SNAPSHOT_RATE = 20; // snapshots broadcast per second
 
-// World is a wide open battlefield. Blue base left, red base right.
-// The map is intentionally roomy: a central lane road for minions, but
-// generous open grass above and below so champions can flank and roam.
+// World is an ENORMOUS open battlefield. Blue base left, red base right.
+// The playable area now fills almost the entire map, so there is no tight
+// band with a hard green boundary line — champions can roam a huge field,
+// with a central minion road and towers scattered across the whole arena.
 export const WORLD = {
-  width: 6400,
-  height: 2400,
-  // The playable band (out of these bounds = the void / death).
-  laneTop: 160,
-  laneBottom: 2240,
+  width: 9600,
+  height: 6000,
+  // The playable band spans nearly the whole world height: the field feels
+  // limitless, with only a thin margin of decorative outer grass.
+  laneTop: 220,
+  laneBottom: 5780,
 };
 
-// The central minion road (a narrower ribbon down the middle of the field).
-export const ROAD_HALF = 170;
+// The central minion road (a wide dirt highway down the middle of the field).
+export const ROAD_HALF = 230;
 
-// Named bush clearings (yellow-ringed cover circles you can hide in).
+// Named bush clearings (yellow-ringed cover circles you can hide in),
+// scattered generously across the enormous field.
 export const BUSH_SPOTS: { x: number; y: number; r: number }[] = [
-  // Top-side bushes.
-  { x: 1200, y: 620,  r: 180 },
-  { x: 2000, y: 520,  r: 210 },
-  { x: 3200, y: 560,  r: 220 },
-  { x: 4400, y: 520,  r: 210 },
-  { x: 5200, y: 620,  r: 180 },
-  // Bottom-side bushes.
-  { x: 1200, y: 1780, r: 180 },
-  { x: 2000, y: 1880, r: 210 },
-  { x: 3200, y: 1840, r: 220 },
-  { x: 4400, y: 1880, r: 210 },
-  { x: 5200, y: 1780, r: 180 },
-  // Mid inner bushes near lane.
-  { x: 2600, y: 900,  r: 150 },
-  { x: 2600, y: 1500, r: 150 },
-  { x: 3800, y: 900,  r: 150 },
-  { x: 3800, y: 1500, r: 150 },
+  // Upper field.
+  { x: 1600, y: 1200, r: 230 },
+  { x: 3000, y: 1500, r: 260 },
+  { x: 4800, y: 1000, r: 280 },
+  { x: 6600, y: 1500, r: 260 },
+  { x: 8000, y: 1200, r: 230 },
+  // Lower field.
+  { x: 1600, y: 4800, r: 230 },
+  { x: 3000, y: 4500, r: 260 },
+  { x: 4800, y: 5000, r: 280 },
+  { x: 6600, y: 4500, r: 260 },
+  { x: 8000, y: 4800, r: 230 },
+  // Mid inner bushes flanking the central road.
+  { x: 3400, y: 2400, r: 200 },
+  { x: 3400, y: 3600, r: 200 },
+  { x: 6200, y: 2400, r: 200 },
+  { x: 6200, y: 3600, r: 200 },
+  { x: 4800, y: 2050, r: 220 },
+  { x: 4800, y: 3950, r: 220 },
 ];
 
-// Neutral jungle camps (visual monsters, decorative for now).
+// Neutral jungle camps (visual monsters, decorative for now), spread across
+// the four quadrants of the big field.
 export const JUNGLE_CAMPS: { x: number; y: number; kind: "beetle" | "crab" | "spider" }[] = [
-  { x: 1600, y: 340,  kind: "beetle" },
-  { x: 1600, y: 2060, kind: "beetle" },
-  { x: 4800, y: 340,  kind: "beetle" },
-  { x: 4800, y: 2060, kind: "beetle" },
-  { x: 2700, y: 340,  kind: "crab"   },
-  { x: 3700, y: 2060, kind: "crab"   },
-  { x: 3200, y: 260,  kind: "spider" },
-  { x: 3200, y: 2140, kind: "spider" },
+  { x: 2200, y: 900,  kind: "beetle" },
+  { x: 2200, y: 5100, kind: "beetle" },
+  { x: 7400, y: 900,  kind: "beetle" },
+  { x: 7400, y: 5100, kind: "beetle" },
+  { x: 3900, y: 700,  kind: "crab"   },
+  { x: 5700, y: 5300, kind: "crab"   },
+  { x: 5700, y: 700,  kind: "crab"   },
+  { x: 3900, y: 5300, kind: "crab"   },
+  { x: 4800, y: 560,  kind: "spider" },
+  { x: 4800, y: 5440, kind: "spider" },
 ];
 
 export const LANE_Y = (WORLD.laneTop + WORLD.laneBottom) / 2;
 
-// Structure positions along the lane.
+// Structure positions. Towers are distributed across the ENTIRE field — a
+// central lane defence plus flanking towers guarding the top and bottom of
+// the huge arena — instead of sitting on a single line down the middle.
 export const STRUCTURES = {
   blue: {
-    nexus: { x: 380, y: LANE_Y },
-    fountain: { x: 200, y: LANE_Y },
+    nexus: { x: 520, y: LANE_Y },
+    fountain: { x: 280, y: LANE_Y },
     turrets: [
       // Base cluster: guardians of the nexus at multiple angles.
-      { x: 560,  y: LANE_Y,      order: 0 },   // front guard on the lane
-      { x: 420,  y: LANE_Y - 220, order: 0 },  // top-flank guard
-      { x: 420,  y: LANE_Y + 220, order: 0 },  // bottom-flank guard
-      // Lane turrets stepping out to the map.
-      { x: 900,  y: LANE_Y, order: 1 },        // inhibitor
-      { x: 1500, y: LANE_Y, order: 2 },        // inner
-      { x: 2200, y: LANE_Y, order: 3 },        // outer
+      { x: 780,  y: LANE_Y,        order: 0 },  // front guard on the lane
+      { x: 620,  y: LANE_Y - 720,  order: 0 },  // top base guard
+      { x: 620,  y: LANE_Y + 720,  order: 0 },  // bottom base guard
+      // Central lane towers stepping out toward mid.
+      { x: 1500, y: LANE_Y, order: 1 },         // inhibitor
+      { x: 2600, y: LANE_Y, order: 2 },         // inner
+      { x: 3800, y: LANE_Y, order: 3 },         // outer
+      // Top-flank towers spread across the upper field.
+      { x: 1700, y: LANE_Y - 1900, order: 1 },  // top inner
+      { x: 3100, y: LANE_Y - 2300, order: 2 },  // top outer
+      // Bottom-flank towers spread across the lower field.
+      { x: 1700, y: LANE_Y + 1900, order: 1 },  // bottom inner
+      { x: 3100, y: LANE_Y + 2300, order: 2 },  // bottom outer
     ],
-    minionSpawn: { x: 620, y: LANE_Y },
+    minionSpawn: { x: 860, y: LANE_Y },
   },
   red: {
-    nexus: { x: WORLD.width - 380, y: LANE_Y },
-    fountain: { x: WORLD.width - 200, y: LANE_Y },
+    nexus: { x: WORLD.width - 520, y: LANE_Y },
+    fountain: { x: WORLD.width - 280, y: LANE_Y },
     turrets: [
-      { x: WORLD.width - 560,  y: LANE_Y,      order: 0 },
-      { x: WORLD.width - 420,  y: LANE_Y - 220, order: 0 },
-      { x: WORLD.width - 420,  y: LANE_Y + 220, order: 0 },
-      { x: WORLD.width - 900,  y: LANE_Y, order: 1 },
-      { x: WORLD.width - 1500, y: LANE_Y, order: 2 },
-      { x: WORLD.width - 2200, y: LANE_Y, order: 3 },
+      { x: WORLD.width - 780,  y: LANE_Y,        order: 0 },
+      { x: WORLD.width - 620,  y: LANE_Y - 720,  order: 0 },
+      { x: WORLD.width - 620,  y: LANE_Y + 720,  order: 0 },
+      { x: WORLD.width - 1500, y: LANE_Y, order: 1 },
+      { x: WORLD.width - 2600, y: LANE_Y, order: 2 },
+      { x: WORLD.width - 3800, y: LANE_Y, order: 3 },
+      { x: WORLD.width - 1700, y: LANE_Y - 1900, order: 1 },
+      { x: WORLD.width - 3100, y: LANE_Y - 2300, order: 2 },
+      { x: WORLD.width - 1700, y: LANE_Y + 1900, order: 1 },
+      { x: WORLD.width - 3100, y: LANE_Y + 2300, order: 2 },
     ],
-    minionSpawn: { x: WORLD.width - 620, y: LANE_Y },
+    minionSpawn: { x: WORLD.width - 860, y: LANE_Y },
   },
 };
 
 // Lane waypoints (a champion/minion follows these toward enemy base).
 // Blue walks left->right, red walks right->left (reversed).
 export const LANE_WAYPOINTS = [
-  { x: 620, y: LANE_Y },
+  { x: 860, y: LANE_Y },
   { x: 1500, y: LANE_Y },
-  { x: 2200, y: LANE_Y },
-  { x: 2900, y: LANE_Y },
-  { x: 3500, y: LANE_Y },
-  { x: 4200, y: LANE_Y },
-  { x: 4900, y: LANE_Y },
-  { x: WORLD.width - 620, y: LANE_Y },
+  { x: 2600, y: LANE_Y },
+  { x: 3800, y: LANE_Y },
+  { x: 4800, y: LANE_Y },
+  { x: 5800, y: LANE_Y },
+  { x: 7000, y: LANE_Y },
+  { x: WORLD.width - 860, y: LANE_Y },
 ];
 
 export const CHAMPION_RADIUS = 26;
