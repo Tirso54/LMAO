@@ -4,6 +4,7 @@ import {
   Entity,
   GameState,
   Minion,
+  Monster,
   Nexus,
   Team,
   Turret,
@@ -19,6 +20,8 @@ import {
   XP_PER_LEVEL,
   MAX_LEVEL,
   XP_SHARE_RADIUS,
+  MONSTER_KINDS,
+  MonsterKind,
 } from "./constants";
 import { CHAMPIONS } from "./champions";
 import { dist } from "./math";
@@ -34,6 +37,7 @@ export function allEntities(state: GameState): Entity[] {
   for (const id in state.minions) out.push(state.minions[id]);
   for (const id in state.turrets) out.push(state.turrets[id]);
   for (const id in state.nexuses) out.push(state.nexuses[id]);
+  for (const id in state.monsters) out.push(state.monsters[id]);
   return out;
 }
 
@@ -44,8 +48,13 @@ export function getEntity(state: GameState, id: number | null): Entity | null {
     state.minions[id] ||
     state.turrets[id] ||
     state.nexuses[id] ||
+    state.monsters[id] ||
     null
   );
+}
+
+export function isMonster(e: Entity | null): e is Monster {
+  return !!e && e.kind === "monster";
 }
 
 export function isChampion(e: Entity | null): e is Champion {
@@ -63,6 +72,10 @@ export function resistFor(target: Entity, type: DamageType): number {
   }
   if (target.kind === "nexus") {
     return type === "physical" ? NEXUS.armor : NEXUS.mr;
+  }
+  if (target.kind === "monster") {
+    const m = target as Monster;
+    return type === "physical" ? m.armor : m.magicResist;
   }
   return 0; // minions have no resists in this bootleg edition
 }
@@ -249,9 +262,100 @@ export function killEntity(state: GameState, target: Entity, killerId: number | 
     return;
   }
 
+  if (target.kind === "monster") {
+    const mo = target as Monster;
+    grantMonsterRewards(state, mo, killer);
+    // Don't delete — mark cleared and let the camp regrow.
+    mo.respawnTimer = MONSTER_KINDS[mo.monsterKind as MonsterKind].respawn;
+    mo.targetId = null;
+    state.fx.push({ t: "death", x: mo.pos.x, y: mo.pos.y, team: "neutral", radius: mo.epic ? 160 : 80 });
+    return;
+  }
+
   if (target.kind === "champion") {
     const victim = target as Champion;
     handleChampionDeath(state, victim, killer);
+  }
+}
+
+// Reward the slayer of a jungle monster: gold + XP + a buff. Epic monsters
+// (Draggón / Nashø) hand a powerful buff and gold to the whole team.
+function grantMonsterRewards(state: GameState, mo: Monster, killer: Entity | null) {
+  let slayer: Champion | null = isChampion(killer) ? killer : null;
+  if (!slayer) {
+    // Credit the nearest enemy champion if a pet/minion got the last hit.
+    let best: Champion | null = null;
+    let bd = Infinity;
+    for (const id in state.champions) {
+      const c = state.champions[id];
+      if (!c.alive) continue;
+      const d = dist(c.pos, mo.pos);
+      if (d < bd) { bd = d; best = c; }
+    }
+    slayer = best;
+  }
+  if (!slayer) return;
+  const team = slayer.team;
+
+  if (mo.epic) {
+    // Epic bounty: gold + XP + team-wide buff to every living ally.
+    for (const id in state.champions) {
+      const c = state.champions[id];
+      if (c.team !== team) continue;
+      c.gold += mo.goldValue;
+      if (c.alive) {
+        grantXp(state, c, mo.xpValue / 2);
+        applyMonsterBuff(state, c, mo.buff);
+      }
+    }
+    state.killFeed.push({
+      id: state.nextFxId++,
+      killer: slayer.displayName,
+      victim: mo.name,
+      killerTeam: team,
+      victimTeam: "neutral",
+      time: state.time,
+    });
+    state.fx.push({ t: "text", x: mo.pos.x, y: mo.pos.y - 40, team, text: `¡${mo.name} abatido!`, color: mo.monsterKind === "baron" ? "#c39bff" : "#ff9a5a" });
+  } else {
+    // Small camp: gold + shared XP to the slayer (and nearby allies) + buff.
+    slayer.gold += mo.goldValue;
+    slayer.cs += 1;
+    const near: Champion[] = [];
+    for (const id in state.champions) {
+      const c = state.champions[id];
+      if (c.alive && c.team === team && dist(c.pos, mo.pos) <= XP_SHARE_RADIUS) near.push(c);
+    }
+    if (near.length === 0) near.push(slayer);
+    const share = mo.xpValue / Math.sqrt(near.length);
+    for (const c of near) grantXp(state, c, share);
+    applyMonsterBuff(state, slayer, mo.buff);
+  }
+}
+
+function applyMonsterBuff(state: GameState, champ: Champion, kind: string) {
+  switch (kind) {
+    case "beetle":
+      addBuff(champ, { id: "jbuff_beetle", kind: "attackspeed", time: 90, magnitude: 0.35, label: "Escarabajo" });
+      state.fx.push({ t: "text", x: champ.pos.x, y: champ.pos.y - 30, team: champ.team, text: "+Vel. Ataque", color: "#f6d060" });
+      break;
+    case "crab":
+      addBuff(champ, { id: "jbuff_crab", kind: "speed", time: 120, magnitude: 0.18, label: "Cangrejo" });
+      state.fx.push({ t: "text", x: champ.pos.x, y: champ.pos.y - 30, team: champ.team, text: "+Velocidad", color: "#7fe3ff" });
+      break;
+    case "spider":
+      healEntity(champ, champ.maxHp * 0.22);
+      addBuff(champ, { id: "jbuff_spider", kind: "shield", time: 10, magnitude: champ.maxHp * 0.08, label: "Araña" });
+      champ.gold += 150;
+      state.fx.push({ t: "text", x: champ.pos.x, y: champ.pos.y - 30, team: champ.team, text: "+Botín", color: "#c73b3b" });
+      break;
+    case "dragon":
+      addBuff(champ, { id: "jbuff_dragon", kind: "empower", time: 120, magnitude: 0, ad: 14, ap: 18, label: "Draggón" });
+      break;
+    case "baron":
+      addBuff(champ, { id: "jbuff_baron", kind: "empower", time: 150, magnitude: 0, ad: 26, ap: 32, armor: 18, mr: 18, label: "Nashø" });
+      addBuff(champ, { id: "jbuff_baron_ms", kind: "speed", time: 150, magnitude: 0.12, label: "Nashø" });
+      break;
   }
 }
 

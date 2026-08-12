@@ -2,7 +2,7 @@
 // The engine is pure TypeScript with no framework dependencies so it can run
 // identically on the host (authoritative) and be reasoned about on clients.
 
-export type Team = "blue" | "red";
+export type Team = "blue" | "red" | "neutral";
 
 export type EntityKind =
   | "champion"
@@ -32,7 +32,8 @@ export interface Buff {
     | "dot"
     | "attackspeed"
     | "invuln"
-    | "airborne";
+    | "airborne"
+    | "empower";
   // Remaining seconds.
   time: number;
   // Generic magnitude — meaning depends on kind (e.g. slow % , shield amount).
@@ -42,6 +43,11 @@ export interface Buff {
   tickType?: DamageType;
   tickAcc?: number;
   sourceId?: number;
+  // Flat stat bonuses folded into recomputeChampStats (jungle/epic buffs).
+  ad?: number;
+  ap?: number;
+  armor?: number;
+  mr?: number;
   // Cosmetic label for the HUD.
   label?: string;
 }
@@ -171,6 +177,30 @@ export interface Nexus extends Entity {
   targetId: number | null;
 }
 
+// A neutral jungle monster (team is always "neutral" so both sides are foes).
+export interface Monster extends Entity {
+  kind: "monster";
+  team: "neutral";
+  monsterKind: string; // MonsterKind
+  epic: boolean;
+  campId: number;
+  home: Vec2;
+  level: number;
+  attackDamage: number;
+  attackRange: number;
+  attackSpeed: number;
+  attackCooldown: number;
+  moveSpeed: number;
+  armor: number;
+  magicResist: number;
+  targetId: number | null;
+  goldValue: number;
+  xpValue: number;
+  respawnTimer: number; // >0 while the camp is cleared and regrowing
+  buff: string; // reward buff id (MonsterKind)
+  name: string;
+}
+
 export interface Projectile {
   id: number;
   team: Team;
@@ -266,6 +296,7 @@ export interface GameState {
   minions: Record<number, Minion>;
   turrets: Record<number, Turret>;
   nexuses: Record<number, Nexus>;
+  monsters: Record<number, Monster>;
   projectiles: Projectile[];
 
   // Traps / zones (mushrooms, chompers, singularities) keyed by id.

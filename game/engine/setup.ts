@@ -2,6 +2,7 @@ import {
   Champion,
   GameConfig,
   GameState,
+  Monster,
   Nexus,
   PlayerSlot,
   Team,
@@ -9,6 +10,9 @@ import {
 } from "./types";
 import {
   CHAMPION_RADIUS,
+  JUNGLE_CAMPS,
+  MONSTER_KINDS,
+  MonsterKind,
   NEXUS,
   NEXUS_RADIUS,
   STARTING_GOLD,
@@ -137,6 +141,42 @@ function makeNexus(state: GameState, team: Team, x: number, y: number): Nexus {
   return n;
 }
 
+function makeMonster(state: GameState, camp: { id: number; x: number; y: number; kind: MonsterKind }): Monster {
+  const def = MONSTER_KINDS[camp.kind];
+  const id = state.nextEntityId++;
+  const m: Monster = {
+    id,
+    kind: "monster",
+    team: "neutral",
+    pos: { x: camp.x, y: camp.y },
+    face: 0,
+    hp: def.hp,
+    maxHp: def.hp,
+    radius: def.radius,
+    alive: false, // dormant until firstSpawn elapses
+    monsterKind: camp.kind,
+    epic: def.epic,
+    campId: camp.id,
+    home: { x: camp.x, y: camp.y },
+    level: def.level,
+    attackDamage: def.ad,
+    attackRange: def.range,
+    attackSpeed: def.attackSpeed,
+    attackCooldown: 0,
+    moveSpeed: def.moveSpeed,
+    armor: def.armor,
+    magicResist: def.mr,
+    targetId: null,
+    goldValue: def.gold,
+    xpValue: def.xp,
+    respawnTimer: def.firstSpawn,
+    buff: def.buff,
+    name: def.name,
+  };
+  state.monsters[id] = m;
+  return m;
+}
+
 export function createInitialState(config: GameConfig): GameState {
   const state: GameState = {
     tick: 0,
@@ -150,6 +190,7 @@ export function createInitialState(config: GameConfig): GameState {
     minions: {},
     turrets: {},
     nexuses: {},
+    monsters: {},
     projectiles: [],
     zones: [],
     fx: [],
@@ -157,8 +198,8 @@ export function createInitialState(config: GameConfig): GameState {
     minionSpawnTimer: 0,
     minionWave: 0,
     config,
-    teamKills: { blue: 0, red: 0 },
-    teamGold: { blue: 0, red: 0 },
+    teamKills: { blue: 0, red: 0, neutral: 0 },
+    teamGold: { blue: 0, red: 0, neutral: 0 },
   };
 
   // Structures.
@@ -167,6 +208,9 @@ export function createInitialState(config: GameConfig): GameState {
     for (const t of s.turrets) makeTurret(state, team, t.x, t.y, t.order);
     makeNexus(state, team, s.nexus.x, s.nexus.y);
   }
+
+  // Neutral jungle camps + epic monsters.
+  for (const camp of JUNGLE_CAMPS) makeMonster(state, camp);
 
   return state;
 }

@@ -166,6 +166,7 @@ export default function GamePlay({
     };
     for (const c of snap.champs) consider(c.id, c.x, c.y, c.alive, c.team);
     for (const m of snap.minions) consider(m.id, m.x, m.y, true, m.team);
+    for (const mo of snap.monsters) consider(mo.id, mo.x, mo.y, true, "neutral");
     for (const t of snap.turrets) consider(t.id, t.x, t.y, t.alive, t.team);
     for (const n of snap.nexuses) consider(n.id, n.x, n.y, n.alive, n.team);
     return best;
@@ -183,6 +184,7 @@ export default function GamePlay({
     };
     for (const c of snap.champs) consider(c.id, c.x, c.y, c.alive, c.team, 30);
     for (const m of snap.minions) consider(m.id, m.x, m.y, true, m.team, 18);
+    for (const mo of snap.monsters) consider(mo.id, mo.x, mo.y, true, "neutral", mo.epic ? 60 : 36);
     for (const t of snap.turrets) consider(t.id, t.x, t.y, t.alive, t.team, 40);
     for (const n of snap.nexuses) consider(n.id, n.x, n.y, n.alive, n.team, 60);
     return best;
@@ -455,6 +457,7 @@ export default function GamePlay({
     for (const c of snap.champs) consider(c.id, c.x, c.y, c.alive, c.team);
     if (!best) {
       for (const m of snap.minions) consider(m.id, m.x, m.y, true, m.team);
+      for (const mo of snap.monsters) consider(mo.id, mo.x, mo.y, true, "neutral");
       for (const t of snap.turrets) consider(t.id, t.x, t.y, t.alive, t.team);
     }
     let tx: number, ty: number, targetId: number | null = null;

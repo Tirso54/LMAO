@@ -1,7 +1,7 @@
-import { Snapshot, ChampSnap, MinionSnap, StructSnap, ProjSnap, ZoneSnap } from "../net/protocol";
+import { Snapshot, ChampSnap, MinionSnap, MonsterSnap, StructSnap, ProjSnap, ZoneSnap } from "../net/protocol";
 import { FxEvent, Team } from "../engine/types";
 import { CHAMPIONS } from "../engine/champions";
-import { WORLD, STRUCTURES, LANE_Y, ROAD_HALF, BUSH_SPOTS, JUNGLE_CAMPS } from "../engine/constants";
+import { WORLD, STRUCTURES, LANE_Y, ROAD_HALF, BUSH_SPOTS, JUNGLE_CAMPS, MONSTER_KINDS } from "../engine/constants";
 
 export interface Camera {
   x: number;
@@ -9,8 +9,8 @@ export interface Camera {
   zoom: number;
 }
 
-const TEAM_COLOR: Record<Team, string> = { blue: "#3aa0ff", red: "#ff5a52" };
-const TEAM_GLOW: Record<Team, string> = { blue: "rgba(58,160,255,0.35)", red: "rgba(255,90,82,0.35)" };
+const TEAM_COLOR: Record<Team, string> = { blue: "#3aa0ff", red: "#ff5a52", neutral: "#e0b96a" };
+const TEAM_GLOW: Record<Team, string> = { blue: "rgba(58,160,255,0.35)", red: "rgba(255,90,82,0.35)", neutral: "rgba(224,185,106,0.35)" };
 
 // ---------------------------------------------------------------------------
 // Snapshot interpolation
@@ -50,7 +50,13 @@ export function interpolate(buffer: { snap: Snapshot; recv: number }[], renderTi
     if (!pa) return pb;
     return { ...pb, x: lerp(pa.x, pb.x, t), y: lerp(pa.y, pb.y, t) };
   });
-  return { ...latest, champs, minions, projectiles };
+  const monMap = new Map(a.snap.monsters.map((m) => [m.id, m]));
+  const monsters = latest.monsters.map((mb) => {
+    const ma = monMap.get(mb.id);
+    if (!ma) return mb;
+    return { ...mb, x: lerp(ma.x, mb.x, t), y: lerp(ma.y, mb.y, t) };
+  });
+  return { ...latest, champs, minions, monsters, projectiles };
 }
 
 function lerp(a: number, b: number, t: number) { return a + (b - a) * t; }
@@ -442,9 +448,10 @@ export function drawWorld(ctx: CanvasRenderingContext2D, time: number) {
     ctx.restore();
   }
 
-  // Jungle camps: a mossy circle with a monster silhouette.
+  // Jungle camps: draw the mossy pit on the ground (the live monster, if any,
+  // is drawn later from the snapshot so it can chase/leash around).
   for (const camp of JUNGLE_CAMPS) {
-    drawCamp(ctx, camp.x, camp.y, camp.kind, time);
+    drawCampPit(ctx, camp.x, camp.y, MONSTER_KINDS[camp.kind].epic);
   }
 
   // Candles / braziers (ambient warm glow).
@@ -555,28 +562,63 @@ export function drawFountain(ctx: CanvasRenderingContext2D, team: Team, time: nu
   ctx.shadowBlur = 0;
 }
 
-function drawCamp(ctx: CanvasRenderingContext2D, x: number, y: number, kind: "beetle" | "crab" | "spider", time: number) {
+function drawCampPit(ctx: CanvasRenderingContext2D, x: number, y: number, epic: boolean) {
+  const R = epic ? 150 : 90;
+  const ringR = epic ? 120 : 70;
   // Mossy pit.
-  const g = ctx.createRadialGradient(x, y, 20, x, y, 90);
-  g.addColorStop(0, "rgba(60, 40, 20, 0.55)");
-  g.addColorStop(1, "rgba(60, 40, 20, 0)");
+  const g = ctx.createRadialGradient(x, y, 20, x, y, R);
+  g.addColorStop(0, epic ? "rgba(70, 30, 60, 0.55)" : "rgba(60, 40, 20, 0.55)");
+  g.addColorStop(1, epic ? "rgba(70, 30, 60, 0)" : "rgba(60, 40, 20, 0)");
   ctx.fillStyle = g;
-  ctx.beginPath(); ctx.arc(x, y, 90, 0, Math.PI * 2); ctx.fill();
-  // Camp ring (subtle).
-  ctx.strokeStyle = "rgba(160, 120, 60, 0.35)";
-  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill();
+  // Camp ring.
+  ctx.strokeStyle = epic ? "rgba(200, 140, 240, 0.45)" : "rgba(160, 120, 60, 0.35)";
+  ctx.lineWidth = epic ? 3 : 2;
   ctx.setLineDash([6, 6]);
-  ctx.beginPath(); ctx.arc(x, y, 70, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, ringR, 0, Math.PI * 2); ctx.stroke();
   ctx.setLineDash([]);
+}
 
+function drawCreature(ctx: CanvasRenderingContext2D, x: number, y: number, kind: string, time: number) {
   // Body shadow.
+  const epic = kind === "dragon" || kind === "baron";
   ctx.fillStyle = "rgba(0,0,0,0.4)";
-  ctx.beginPath(); ctx.ellipse(x, y + 14, 28, 10, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x, y + (epic ? 30 : 14), epic ? 54 : 28, epic ? 18 : 10, 0, 0, Math.PI * 2); ctx.fill();
 
-  const wobble = Math.sin(time * 2 + x) * 2;
+  const wobble = Math.sin(time * 2 + x) * (epic ? 3 : 2);
   ctx.save();
   ctx.translate(x, y + wobble);
-  if (kind === "beetle") {
+  if (kind === "dragon") {
+    // Winged crimson drake.
+    ctx.fillStyle = "#7a2438";
+    ctx.beginPath(); ctx.ellipse(0, 0, 40, 28, 0, 0, Math.PI * 2); ctx.fill();
+    // Wings.
+    ctx.fillStyle = "#a5344f";
+    ctx.beginPath(); ctx.moveTo(-10, -6); ctx.lineTo(-64, -30); ctx.lineTo(-30, 6); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(10, -6); ctx.lineTo(64, -30); ctx.lineTo(30, 6); ctx.closePath(); ctx.fill();
+    // Head + horns.
+    ctx.fillStyle = "#5c1a2a";
+    ctx.beginPath(); ctx.arc(0, -26, 13, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#3a1119"; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(-7, -34); ctx.lineTo(-14, -46); ctx.moveTo(7, -34); ctx.lineTo(14, -46); ctx.stroke();
+    // Glowing eyes.
+    ctx.fillStyle = "#ffd23f";
+    ctx.beginPath(); ctx.arc(-5, -26, 3, 0, Math.PI * 2); ctx.arc(5, -26, 3, 0, Math.PI * 2); ctx.fill();
+  } else if (kind === "baron") {
+    // Great violet serpent-worm.
+    ctx.fillStyle = "#4a2a6a";
+    ctx.beginPath(); ctx.ellipse(0, 4, 44, 34, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#2f1a45";
+    for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.ellipse(i * 14, 2, 5, 22, 0, 0, Math.PI * 2); ctx.fill(); }
+    // Head.
+    ctx.fillStyle = "#5c3a86";
+    ctx.beginPath(); ctx.arc(0, -30, 18, 0, Math.PI * 2); ctx.fill();
+    // Mandibles.
+    ctx.strokeStyle = "#2f1a45"; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(-12, -38); ctx.lineTo(-24, -52); ctx.moveTo(12, -38); ctx.lineTo(24, -52); ctx.stroke();
+    ctx.fillStyle = "#c39bff";
+    ctx.beginPath(); ctx.arc(-6, -32, 3.4, 0, Math.PI * 2); ctx.arc(6, -32, 3.4, 0, Math.PI * 2); ctx.fill();
+  } else if (kind === "beetle") {
     // Reddish-brown beetle with segmented back.
     ctx.fillStyle = "#8a4a2a";
     ctx.beginPath(); ctx.ellipse(0, 0, 32, 22, 0, 0, Math.PI * 2); ctx.fill();
@@ -627,6 +669,36 @@ function drawCamp(ctx: CanvasRenderingContext2D, x: number, y: number, kind: "be
     ctx.beginPath(); ctx.arc(4, -3, 2.4, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
+}
+
+function drawMonster(ctx: CanvasRenderingContext2D, mo: MonsterSnap, time: number) {
+  drawCreature(ctx, mo.x, mo.y, mo.k, time);
+  const epic = mo.epic;
+  const top = mo.y - (epic ? 78 : 44);
+  // HP bar (neutral gold, epics get a wider bar + name).
+  const w = epic ? 120 : 46;
+  const pct = Math.max(0, mo.hp / mo.mhp);
+  ctx.fillStyle = "rgba(0,0,0,0.7)";
+  ctx.fillRect(mo.x - w / 2 - 1, top - 1, w + 2, epic ? 10 : 7);
+  ctx.fillStyle = epic ? (mo.k === "baron" ? "#b07bff" : "#ff7a45") : "#e0b96a";
+  ctx.fillRect(mo.x - w / 2, top, w * pct, epic ? 8 : 5);
+  ctx.strokeStyle = "rgba(255,255,255,0.35)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(mo.x - w / 2, top, w, epic ? 8 : 5);
+  // Level badge.
+  ctx.fillStyle = "#0d1220";
+  ctx.beginPath(); ctx.arc(mo.x - w / 2 - 9, top + (epic ? 4 : 2), 8, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "#e0b96a"; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = "#e0b96a";
+  ctx.font = "bold 10px 'Trebuchet MS'"; ctx.textAlign = "center";
+  ctx.fillText(String(mo.lvl), mo.x - w / 2 - 9, top + (epic ? 8 : 6));
+  if (epic) {
+    ctx.font = "bold 14px 'Trebuchet MS'"; ctx.textAlign = "center";
+    ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.8)";
+    ctx.strokeText(mo.name, mo.x, top - 8);
+    ctx.fillStyle = mo.k === "baron" ? "#d9c2ff" : "#ffcba0";
+    ctx.fillText(mo.name, mo.x, top - 8);
+  }
 }
 
 // Small overlay minimap of the whole battlefield.
@@ -692,6 +764,13 @@ export function drawMinimap(
     ctx.arc(x0 + m.x * sx, y0 + m.y * sy, 1.4, 0, Math.PI * 2);
     ctx.fill();
   }
+  // Neutral monsters (epics stand out).
+  for (const mo of snap.monsters) {
+    ctx.fillStyle = mo.epic ? (mo.k === "baron" ? "#c39bff" : "#ff9a5a") : "rgba(224,185,106,0.9)";
+    ctx.beginPath();
+    ctx.arc(x0 + mo.x * sx, y0 + mo.y * sy, mo.epic ? 3.2 : 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
   // Champions.
   for (const c of snap.champs) {
     if (!c.alive) continue;
@@ -718,6 +797,9 @@ export function drawScene(
   // Nexuses & turrets.
   for (const n of snap.nexuses) drawNexus(ctx, n, time);
   for (const t of snap.turrets) drawTurret(ctx, t);
+
+  // Neutral jungle monsters.
+  for (const mo of snap.monsters) drawMonster(ctx, mo, time);
 
   // Minions.
   for (const m of snap.minions) drawMinion(ctx, m);

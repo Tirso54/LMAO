@@ -19,16 +19,22 @@ so it deploys anywhere Next.js does, with **no dedicated game server required.**
   so it's fully playable solo too.
 - **8 legally-distinct champions**, each with a passive + Q/W/E/R abilities (skillshots, dashes, hooks,
   global ults, executes, traps, shields…): Yasøu, Teemoo, Ashee, Garón, Jinix, Luux, Blïtzcronk, Dariôs.
+- **A HUGE 8800×3200 arena** with four turret tiers per side, a fat road down the middle, named cover
+  bushes, and open flanking grass — plus beefier champions, minions and structures so fights feel weighty.
+- **A living neutral jungle:** real, killable camps (Escarabajo, Cangrejo, Araña) that wake up, chase,
+  leash back to their pit and respawn — each drops gold, XP and a personal buff. Two **epic bosses**,
+  **Draggón Anciano** and **Nashø el Vil**, hand your whole team a powerful buff when you slay them.
 - **A full MOBA loop:** minion waves, turrets, a Nexus, last-hitting for gold, shared XP, 18 levels,
   ability ranking, respawn timers, kill/assist bounties, multikills & shutdowns.
 - **The Bootleg Bazaar** in-game item shop (Infoggnity Edge, Rabadong's Deathkap, Ninja Tabbies…).
-- **AI bots** that farm, poke, engage, kite, retreat, recall, buy items, and push to end the game.
+- **AI bots** that farm, poke, engage, kite, retreat, recall, buy items, **clear the jungle**, and push to end the game.
 - **Classic controls:** right-click move/attack, QWER quick-cast, attack-move, recall, shop, ping, zoom.
 
 ## How to win
 
 Push a lane with your minions, take down the enemy turrets, then smash their **Nexus**. Last-hit minions
-for gold, buy items, snowball, win. It's basically the real game, but 97% off.
+**and jungle camps** for gold, grab the **epic buffs** from Draggón and Nashø to power-spike your team,
+buy items, snowball, win. It's basically the real game, but 97% off.
 
 ## Controls
 

@@ -3,6 +3,7 @@ import {
   Entity,
   GameState,
   Minion,
+  Monster,
   Nexus,
   PlayerInput,
   Projectile,
@@ -26,6 +27,11 @@ import {
   FOUNTAIN_REGEN,
   CHAMPION_RADIUS,
   MINION_RADIUS,
+  MONSTER,
+  MONSTER_KINDS,
+  MonsterKind,
+  MINION_SIEGE_MULT,
+  CHAMP_SIEGE_MULT,
 } from "./constants";
 import { CHAMPIONS } from "./champions";
 import { ITEMS } from "./items";
@@ -283,6 +289,9 @@ export function step(state: GameState, dt: number = DT) {
   // Minion behavior.
   for (const id in state.minions) updateMinion(state, state.minions[id], dt);
 
+  // Neutral jungle monsters.
+  for (const id in state.monsters) updateMonster(state, state.monsters[id], dt);
+
   // Structures.
   for (const id in state.turrets) updateTurret(state, state.turrets[id], dt);
   for (const id in state.nexuses) updateNexus(state, state.nexuses[id], dt);
@@ -321,6 +330,12 @@ function updateChampion(state: GameState, champ: Champion, dt: number) {
   // Buffs tick.
   updateBuffs(state, champ, dt);
   decayDamagers(champ, dt);
+
+  // Recompute derived stats each tick so timed stat buffs (jungle camps,
+  // Draggón/Nashø) take effect and expire cleanly. Cheap for ~10 champs.
+  recomputeChampStats(champ);
+  if (champ.hp > champ.maxHp) champ.hp = champ.maxHp;
+  if (champ.mana > champ.maxMana) champ.mana = champ.maxMana;
 
   // Auto-level any unspent points (beginner friendly; manual overrides earlier).
   if (unspentPoints(champ) > 0) autoLevel(champ);
@@ -416,8 +431,16 @@ function respawn(state: GameState, champ: Champion) {
   state.fx.push({ t: "cast", x: champ.pos.x, y: champ.pos.y, team: champ.team, spellId: "respawn" });
 }
 
+function speedMultiplier(champ: Champion): number {
+  let bonus = 0;
+  for (const b of champ.buffs) {
+    if ((b.kind === "speed" || b.kind === "haste") && b.time > 0) bonus += b.magnitude;
+  }
+  return Math.min(2.2, 1 + bonus);
+}
+
 function moveToward(state: GameState, champ: Champion, dest: { x: number; y: number }, dt: number) {
-  const speed = champ.moveSpeed * slowMultiplier(champ);
+  const speed = champ.moveSpeed * slowMultiplier(champ) * speedMultiplier(champ);
   const d = dist(champ.pos, dest);
   if (d < 1) return;
   const dir = norm(sub(dest, champ.pos));
@@ -517,7 +540,8 @@ function fireAutoAttack(state: GameState, champ: Champion, forced?: Entity) {
 
   const applyLanding = (hitTarget: Entity) => {
     if (!hitTarget || !hitTarget.alive) return;
-    dealDamage(state, champ.id, hitTarget, dmg, damageType, { isAuto: true, isCrit });
+    const siege = hitTarget.kind === "turret" || hitTarget.kind === "nexus" ? CHAMP_SIEGE_MULT : 1;
+    dealDamage(state, champ.id, hitTarget, dmg * siege, damageType, { isAuto: true, isCrit });
     // On-hit: Teemoo toxic.
     if (champ.championId === "teemoo") {
       const er = champ.abilities[2].rank;
@@ -598,6 +622,10 @@ function nearbyEnemies(state: GameState, team: Team, center: { x: number; y: num
     const m = state.minions[id];
     if (m.alive && m.team !== team && dist(m.pos, center) <= radius) out.push(m);
   }
+  for (const id in state.monsters) {
+    const mo = state.monsters[id];
+    if (mo.alive && mo.team !== team && dist(mo.pos, center) <= radius) out.push(mo);
+  }
   return out;
 }
 
@@ -618,6 +646,7 @@ function acquireTarget(state: GameState, champ: Champion): Entity | null {
   };
   for (const id in state.champions) consider(state.champions[id], 0);
   for (const id in state.minions) consider(state.minions[id], 400);
+  for (const id in state.monsters) consider(state.monsters[id], 600);
   for (const id in state.turrets) consider(state.turrets[id], 900);
   for (const id in state.nexuses) consider(state.nexuses[id], 1200);
   return best;
@@ -780,6 +809,7 @@ function enemyEntitiesArr(state: GameState, team: Team): Entity[] {
   const out: Entity[] = [];
   for (const id in state.champions) if (state.champions[id].team !== team) out.push(state.champions[id]);
   for (const id in state.minions) if (state.minions[id].team !== team) out.push(state.minions[id]);
+  for (const id in state.monsters) if (state.monsters[id].alive && state.monsters[id].team !== team) out.push(state.monsters[id]);
   for (const id in state.turrets) if (state.turrets[id].team !== team) out.push(state.turrets[id]);
   for (const id in state.nexuses) if (state.nexuses[id].team !== team) out.push(state.nexuses[id]);
   return out;
@@ -921,6 +951,10 @@ function enemiesInZone(state: GameState, team: Team, center: { x: number; y: num
   for (const id in state.minions) {
     const m = state.minions[id];
     if (m.alive && m.team !== team && dist(m.pos, center) <= radius + m.radius) out.push(m);
+  }
+  for (const id in state.monsters) {
+    const mo = state.monsters[id];
+    if (mo.alive && mo.team !== team && dist(mo.pos, center) <= radius + mo.radius) out.push(mo);
   }
   return out;
 }
@@ -1065,6 +1099,11 @@ function moveMinionToward(state: GameState, m: Minion, dest: { x: number; y: num
   clampToLane(m);
 }
 
+function minionDamageVs(m: Minion, target: Entity): number {
+  const siege = target.kind === "turret" || target.kind === "nexus" ? MINION_SIEGE_MULT : 1;
+  return m.attackDamage * siege;
+}
+
 function fireMinionAttack(state: GameState, m: Minion, target: Entity) {
   if (m.attackRange > 150) {
     // Ranged: projectile.
@@ -1083,11 +1122,135 @@ function fireMinionAttack(state: GameState, m: Minion, target: Entity) {
       kind: "auto",
     };
     (proj as any)._apply = (e: Entity) => {
-      dealDamage(state, m.id, e, m.attackDamage, "physical", { isAuto: true });
+      dealDamage(state, m.id, e, minionDamageVs(m, e), "physical", { isAuto: true });
     };
     state.projectiles.push(proj);
   } else {
-    dealDamage(state, m.id, target, m.attackDamage, "physical", { isAuto: true });
+    dealDamage(state, m.id, target, minionDamageVs(m, target), "physical", { isAuto: true });
+  }
+}
+
+// ------------------------------------------------------------------
+// Neutral jungle monsters
+// ------------------------------------------------------------------
+function reviveMonster(state: GameState, mo: Monster) {
+  const def = MONSTER_KINDS[mo.monsterKind as MonsterKind];
+  const minutes = state.time / 60;
+  const hpScale = 1 + MONSTER.hpGrowthPerMin * minutes;
+  const adScale = 1 + MONSTER.adGrowthPerMin * minutes;
+  mo.maxHp = Math.round(def.hp * hpScale);
+  mo.hp = mo.maxHp;
+  mo.attackDamage = def.ad * adScale;
+  mo.pos = { x: mo.home.x, y: mo.home.y };
+  mo.alive = true;
+  mo.targetId = null;
+  mo.attackCooldown = 0;
+  mo.respawnTimer = 0;
+  state.fx.push({ t: "cast", x: mo.home.x, y: mo.home.y, team: "neutral", spellId: "camp_spawn" });
+  if (mo.epic) {
+    state.fx.push({ t: "text", x: mo.home.x, y: mo.home.y - 50, team: "neutral", text: `¡${mo.name} ha despertado!`, color: mo.monsterKind === "baron" ? "#c39bff" : "#ff9a5a" });
+  }
+}
+
+function monsterValidTarget(mo: Monster, e: Entity | null): boolean {
+  if (!e || !e.alive || e.team === "neutral") return false;
+  if (isChampion(e) && e.buffs.some((b) => b.id === "stealth")) return false;
+  return dist(mo.home, e.pos) < MONSTER.leash;
+}
+
+function pickMonsterTarget(state: GameState, mo: Monster): Entity | null {
+  let best: Entity | null = null;
+  let bestScore = Infinity;
+  const consider = (e: Entity, prio: number) => {
+    if (!monsterValidTarget(mo, e)) return;
+    const d = dist(mo.pos, e.pos);
+    if (d > MONSTER.aggro) return;
+    const score = d + prio;
+    if (score < bestScore) { bestScore = score; best = e; }
+  };
+  for (const id in state.champions) consider(state.champions[id], 0);
+  for (const id in state.minions) consider(state.minions[id], 200);
+  return best;
+}
+
+function moveMonsterToward(state: GameState, mo: Monster, dest: { x: number; y: number }, dt: number) {
+  const d = dist(mo.pos, dest);
+  if (d < 1) return;
+  const dir = norm(sub(dest, mo.pos));
+  const step = Math.min(d, mo.moveSpeed * dt);
+  mo.pos = add(mo.pos, scale(dir, step));
+  mo.face = Math.atan2(dir.y, dir.x);
+  clampToLane(mo);
+}
+
+function fireMonsterAttack(state: GameState, mo: Monster, target: Entity) {
+  state.fx.push({ t: "shot", x: mo.pos.x, y: mo.pos.y, x2: target.pos.x, y2: target.pos.y, team: "neutral", color: mo.epic ? "#c39bff" : "#e0b96a", radius: mo.epic ? 10 : 7 });
+  if (mo.attackRange > 150) {
+    const proj: Projectile = {
+      id: state.nextProjectileId++,
+      team: "neutral",
+      pos: { x: mo.pos.x, y: mo.pos.y },
+      vel: { x: 0, y: 0 },
+      speed: 1000,
+      targetId: target.id,
+      sourceId: mo.id,
+      damage: mo.attackDamage,
+      damageType: "physical",
+      radius: 12,
+      kind: "auto",
+    };
+    (proj as any)._apply = (e: Entity) => dealDamage(state, mo.id, e, mo.attackDamage, "physical", { isAuto: true });
+    state.projectiles.push(proj);
+  } else {
+    dealDamage(state, mo.id, target, mo.attackDamage, "physical", { isAuto: true });
+    state.fx.push({ t: "beam", x: mo.pos.x, y: mo.pos.y, x2: target.pos.x, y2: target.pos.y, team: "neutral", color: mo.epic ? "#c39bff" : "#e0b96a", radius: 6 });
+  }
+}
+
+function updateMonster(state: GameState, mo: Monster, dt: number) {
+  if (!mo.alive) {
+    mo.respawnTimer -= dt;
+    if (mo.respawnTimer <= 0) reviveMonster(state, mo);
+    return;
+  }
+  if (mo.attackCooldown > 0) mo.attackCooldown -= dt;
+
+  // Leashing: dragged too far from its pit → reset & heal on the way home.
+  const homeDist = dist(mo.pos, mo.home);
+  if (homeDist > MONSTER.leash) {
+    mo.targetId = null;
+    healEntity(mo, mo.maxHp);
+    moveMonsterToward(state, mo, mo.home, dt);
+    return;
+  }
+
+  // Target acquisition / validation.
+  let target = getEntity(state, mo.targetId);
+  if (!monsterValidTarget(mo, target)) {
+    target = pickMonsterTarget(state, mo);
+    mo.targetId = target ? target.id : null;
+  }
+
+  if (target) {
+    const range = mo.attackRange + mo.radius + target.radius;
+    const d = dist(mo.pos, target.pos);
+    if (d <= range) {
+      mo.face = angleTo(mo.pos, target.pos);
+      if (mo.attackCooldown <= 0) {
+        fireMonsterAttack(state, mo, target);
+        mo.attackCooldown = 1 / mo.attackSpeed;
+      }
+    } else {
+      moveMonsterToward(state, mo, target.pos, dt);
+    }
+    return;
+  }
+
+  // Idle: return to the pit and regenerate.
+  if (homeDist > 6) {
+    moveMonsterToward(state, mo, mo.home, dt);
+  } else if (mo.hp < mo.maxHp) {
+    healEntity(mo, mo.maxHp * 0.06 * dt + 25 * dt);
   }
 }
 
