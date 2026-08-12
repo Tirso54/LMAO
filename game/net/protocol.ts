@@ -51,6 +51,17 @@ export interface MinionSnap {
   hp: number;
   mhp: number;
 }
+export interface MonsterSnap {
+  id: number;
+  k: string; // monsterKind
+  x: number;
+  y: number;
+  hp: number;
+  mhp: number;
+  epic: boolean;
+  lvl: number;
+  name: string;
+}
 export interface StructSnap {
   id: number;
   team: Team;
@@ -91,6 +102,7 @@ export interface Snapshot {
   winner: Team | null;
   champs: ChampSnap[];
   minions: MinionSnap[];
+  monsters: MonsterSnap[];
   turrets: StructSnap[];
   nexuses: StructSnap[];
   projectiles: ProjSnap[];
@@ -185,6 +197,12 @@ export function makeSnapshot(state: GameState): Snapshot {
     const m = state.minions[id];
     minions.push({ id: m.id, mt: m.minionType, team: m.team, x: Math.round(m.pos.x), y: Math.round(m.pos.y), hp: Math.round(m.hp), mhp: Math.round(m.maxHp) });
   }
+  const monsters: MonsterSnap[] = [];
+  for (const id in state.monsters) {
+    const mo = state.monsters[id];
+    if (!mo.alive) continue; // dormant/cleared camps aren't drawn
+    monsters.push({ id: mo.id, k: mo.monsterKind, x: Math.round(mo.pos.x), y: Math.round(mo.pos.y), hp: Math.max(0, Math.round(mo.hp)), mhp: Math.round(mo.maxHp), epic: mo.epic, lvl: mo.level, name: mo.name });
+  }
   const turrets: StructSnap[] = [];
   for (const id in state.turrets) {
     const t = state.turrets[id];
@@ -205,6 +223,7 @@ export function makeSnapshot(state: GameState): Snapshot {
     winner: state.winner,
     champs,
     minions,
+    monsters,
     turrets,
     nexuses,
     projectiles,
@@ -212,7 +231,7 @@ export function makeSnapshot(state: GameState): Snapshot {
     fx: state.fx.slice(),
     killFeed: state.killFeed.slice(-8),
     teamKills: state.teamKills,
-    teamGold: { blue: Math.round(state.teamGold.blue), red: Math.round(state.teamGold.red) },
+    teamGold: { blue: Math.round(state.teamGold.blue), red: Math.round(state.teamGold.red), neutral: 0 },
     wave: state.minionWave,
   };
   return snap;

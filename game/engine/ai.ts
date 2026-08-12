@@ -6,11 +6,11 @@ import { add, angleTo, dist, fromAngle, norm, sub, scale, clamp } from "./math";
 import { applyInput, unspentPoints } from "./simulation";
 import { enemyTeam, isChampion, slowMultiplier } from "./combat";
 
-// Difficulty knobs.
+// Difficulty knobs (tuned up: sharper reactions, better aim, smarter aggression).
 const DIFF = {
-  casual: { react: 0.35, aggro: 0.7, skillAim: 0.55, retreatHp: 0.28 },
-  normal: { react: 0.2, aggro: 0.9, skillAim: 0.75, retreatHp: 0.32 },
-  savage: { react: 0.1, aggro: 1.15, skillAim: 0.92, retreatHp: 0.38 },
+  casual: { react: 0.3, aggro: 0.8, skillAim: 0.62, retreatHp: 0.26, jungle: true },
+  normal: { react: 0.16, aggro: 1.0, skillAim: 0.82, retreatHp: 0.3, jungle: true },
+  savage: { react: 0.08, aggro: 1.25, skillAim: 0.96, retreatHp: 0.36, jungle: true },
 };
 
 export function updateBots(state: GameState, dt: number) {
@@ -171,17 +171,56 @@ function decideBot(state: GameState, c: Champion, diff: typeof DIFF.normal) {
     return;
   }
 
-  // No enemy champs threatening: push the lane toward the enemy base so games end.
-  // Attack-move toward the enemy nexus; auto-acquire grabs minions & structures en route.
-  // Stay roughly with our minions unless we're healthy and ahead.
+  // Read the numbers: if the enemy is dead or outnumbered, it's a siege window —
+  // commit to the base and end the game instead of farming or hovering at mid.
+  const aliveAllies = countAliveChamps(state, c.team);
+  const aliveEnemies = countAliveChamps(state, enemyTeam(c.team));
+  const siegeWindow = aliveEnemies === 0 || (aliveAllies - aliveEnemies >= 1 && hpRatio > 0.5);
+
+  // No lane threats: clear a jungle camp only if one is basically on the way
+  // and we're healthy — never during a siege window.
+  if (diff.jungle && hpRatio > 0.7 && !siegeWindow) {
+    const camp = nearestCamp(state, c, hpRatio);
+    if (camp) {
+      input.attackMove = { x: camp.pos.x, y: camp.pos.y };
+      applyInput(state, c.ownerId, input);
+      return;
+    }
+  }
+
+  // Push the lane toward the enemy base so games end. Attack-move toward the
+  // enemy nexus; auto-acquire grabs minions & structures en route. During a
+  // siege window, drive all the way into the base; otherwise stay with minions.
   const enemyNexus = c.team === "blue" ? STRUCTURES.red.nexus : STRUCTURES.blue.nexus;
   const f = frontier(state, c);
   const forward = c.team === "blue" ? 1 : -1;
-  // Don't over-extend past our minion frontier by too much unless very healthy.
-  const pushX = hpRatio > 0.6 ? f.x + forward * 260 : f.x;
+  const pushX = siegeWindow ? enemyNexus.x : (hpRatio > 0.6 ? f.x + forward * 400 : f.x);
   const clampedPush = c.team === "blue" ? Math.min(pushX, enemyNexus.x) : Math.max(pushX, enemyNexus.x);
   input.attackMove = { x: clampedPush, y: LANE_Y };
   applyInput(state, c.ownerId, input);
+}
+
+function countAliveChamps(state: GameState, team: Team): number {
+  let n = 0;
+  for (const id in state.champions) {
+    const c = state.champions[id];
+    if (c.alive && c.team === team) n++;
+  }
+  return n;
+}
+
+function nearestCamp(state: GameState, c: Champion, hpRatio: number): { pos: { x: number; y: number } } | null {
+  let best: { pos: { x: number; y: number } } | null = null;
+  let bd = 1150; // only camps essentially on the bot's path
+  for (const id in state.monsters) {
+    const mo = state.monsters[id];
+    if (!mo.alive) continue;
+    // Only very healthy bots contest the epic pits (Draggón / Nashø).
+    if (mo.epic && hpRatio < 0.85) continue;
+    const d = dist(c.pos, mo.pos);
+    if (d < bd) { bd = d; best = mo; }
+  }
+  return best;
 }
 
 function anyEnemyClose(state: GameState, c: Champion, r: number): boolean {

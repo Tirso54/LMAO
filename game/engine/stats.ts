@@ -2,6 +2,7 @@ import { Champion } from "./types";
 import { CHAMPIONS } from "./champions";
 import { ITEMS, ItemStats } from "./items";
 import { clamp } from "./math";
+import { CHAMP } from "./constants";
 
 // Recompute a champion's derived combat stats from base + level + items + buffs.
 // maxHp/maxMana are set here; current hp/mana are preserved by callers.
@@ -15,14 +16,16 @@ export function recomputeChampStats(champ: Champion) {
   // Per-level growth uses a mild diminishing curve like LoL (stat * (0.7 + 0.3*n/17)).
   const growth = (per: number) => per * g * (0.685 + (0.315 * g) / 17);
 
-  let hp = s.hp + growth(s.hpPerLvl);
+  // Bigger, tankier champions: scale base+level health up (the arena is huge,
+  // fights should feel weighty). Item health is added on top afterward.
+  let hp = (s.hp + growth(s.hpPerLvl)) * CHAMP.hpScale;
   let mana = s.mana + growth(s.manaPerLvl);
   let ad = s.ad + growth(s.adPerLvl);
   let armor = s.armor + growth(s.armorPerLvl);
   let mr = s.mr + growth(s.mrPerLvl);
   let attackSpeedBonus = (s.asPerLvl / 100) * g; // fractional bonus
   let ap = 0;
-  let moveSpeed = s.moveSpeed;
+  let moveSpeed = s.moveSpeed + CHAMP.msBonus;
   let moveSpeedPct = 0;
   let crit = 0;
   let lifesteal = 0;
@@ -54,6 +57,15 @@ export function recomputeChampStats(champ: Champion) {
 
   // Deathcap amplifies total AP by 30%.
   if (champ.items.includes("deathcap")) ap *= 1.3;
+
+  // Active buffs with flat stat bonuses (jungle camp buffs, Dragón/Barón).
+  for (const b of champ.buffs) {
+    if (b.time <= 0) continue;
+    if (b.ad) ad += b.ad;
+    if (b.ap) ap += b.ap;
+    if (b.armor) armor += b.armor;
+    if (b.mr) mr += b.mr;
+  }
 
   champ.maxHp = Math.round(hp);
   champ.maxMana = Math.round(mana);

@@ -112,9 +112,9 @@ export default function Hud({
         <div style={killFeed}>
           {snap.killFeed.slice(-6).map((k) => (
             <div key={k.id} style={{ background: "rgba(0,0,0,0.55)", borderRadius: 6, padding: "3px 8px", fontSize: 12, marginBottom: 3 }}>
-              <b style={{ color: k.killerTeam === "blue" ? "var(--blue)" : "var(--red)" }}>{k.killer}</b>
-              {k.isTurret ? " derribó " : k.isNexus ? " DESTRUYÓ " : " eliminó a "}
-              <b style={{ color: k.victimTeam === "blue" ? "var(--blue)" : "var(--red)" }}>{k.victim}</b>
+              <b style={{ color: k.killerTeam === "blue" ? "var(--blue)" : k.killerTeam === "red" ? "var(--red)" : "#e0b96a" }}>{k.killer}</b>
+              {k.isTurret ? " derribó " : k.isNexus ? " DESTRUYÓ " : k.victimTeam === "neutral" ? " abatió a " : " eliminó a "}
+              <b style={{ color: k.victimTeam === "blue" ? "var(--blue)" : k.victimTeam === "red" ? "var(--red)" : "#e0b96a" }}>{k.victim}</b>
               {k.multi ? <span style={{ color: "var(--brand-yellow)" }}> ×{k.multi}!</span> : null}
               {k.shutdown ? <span style={{ color: "var(--brand-orange)" }}> ¡CORTE!</span> : null}
             </div>

@@ -108,6 +108,7 @@ function enemiesInRadius(state: GameState, team: Team, center: { x: number; y: n
   };
   for (const id in state.champions) push(state.champions[id]);
   for (const id in state.minions) push(state.minions[id]);
+  for (const id in state.monsters) push(state.monsters[id]);
   for (const id in state.turrets) push(state.turrets[id]);
   for (const id in state.nexuses) push(state.nexuses[id]);
   return out;
@@ -571,6 +572,7 @@ export function allEnemyEntities(state: GameState, team: Team): Entity[] {
   };
   for (const id in state.champions) add2(state.champions[id]);
   for (const id in state.minions) add2(state.minions[id]);
+  for (const id in state.monsters) add2(state.monsters[id]);
   for (const id in state.turrets) add2(state.turrets[id]);
   for (const id in state.nexuses) add2(state.nexuses[id]);
   return out;
