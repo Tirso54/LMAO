@@ -361,13 +361,26 @@ export function drawWorld(ctx: CanvasRenderingContext2D, time: number) {
   const top = WORLD.laneTop;
   const bot = WORLD.laneBottom;
 
-  // Grass field background (generously oversized so the camera never shows void).
+  // Deep-forest field background (a moody dark green + subtle radial vignette
+  // like the reference art). Oversized so the camera never shows void.
   const M = 2600;
-  const gg = ctx.createLinearGradient(0, -M, 0, WORLD.height + M);
-  gg.addColorStop(0, "#15361f");
-  gg.addColorStop(0.5, "#1c4527");
-  gg.addColorStop(1, "#12301b");
+  // Void (out of bounds) tone.
+  ctx.fillStyle = "#050809";
+  ctx.fillRect(-M, -M, WORLD.width + M * 2, WORLD.height + M * 2);
+  const gg = ctx.createLinearGradient(0, top - 200, 0, bot + 200);
+  gg.addColorStop(0, "#0f2818");
+  gg.addColorStop(0.5, "#173a24");
+  gg.addColorStop(1, "#0d2416");
   ctx.fillStyle = gg;
+  ctx.fillRect(-M, top - 220, WORLD.width + M * 2, (bot - top) + 440);
+  // Vignette: the playfield fades into the void near its edges.
+  const vg = ctx.createRadialGradient(
+    WORLD.width / 2, WORLD.height / 2, WORLD.width * 0.35,
+    WORLD.width / 2, WORLD.height / 2, WORLD.width * 0.72
+  );
+  vg.addColorStop(0, "rgba(0,0,0,0)");
+  vg.addColorStop(1, "rgba(0,0,0,0.55)");
+  ctx.fillStyle = vg;
   ctx.fillRect(-M, -M, WORLD.width + M * 2, WORLD.height + M * 2);
 
   // Soft grass mottling (large translucent blobs).
@@ -485,20 +498,29 @@ export function drawWorld(ctx: CanvasRenderingContext2D, time: number) {
     ctx.beginPath(); ctx.ellipse(c.x, c.y, 5, 9 * flick, 0, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Bushes (with shadow + sway).
+  // Bushes: chunky broccoli-style clusters (dark base + brighter highlights on
+  // top-left, matching the reference art).
   for (const b of BUSHES!) {
     const s = Math.sin(time * 1.5 + b.sway) * 3;
-    ctx.fillStyle = "rgba(0,0,0,0.28)";
+    // Ground shadow.
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
     ctx.beginPath();
-    ctx.ellipse(b.x + 4, b.y + b.r * 0.5, b.r * 0.95, b.r * 0.4, 0, 0, Math.PI * 2);
+    ctx.ellipse(b.x + 6, b.y + b.r * 0.55, b.r * 1.05, b.r * 0.42, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "#123a1e";
+    // Dark base blob.
+    ctx.fillStyle = "#0e2a17";
     ctx.beginPath(); ctx.arc(b.x + s, b.y, b.r, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#1b5029";
-    ctx.beginPath(); ctx.arc(b.x + s - b.r * 0.3, b.y - b.r * 0.25, b.r * 0.62, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(b.x + s + b.r * 0.35, b.y - b.r * 0.1, b.r * 0.5, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "rgba(120,200,120,0.18)";
-    ctx.beginPath(); ctx.arc(b.x + s - b.r * 0.3, b.y - b.r * 0.4, b.r * 0.28, 0, Math.PI * 2); ctx.fill();
+    // Mid-tone bulbs around the base (broccoli lumps).
+    ctx.fillStyle = "#1a4a26";
+    ctx.beginPath(); ctx.arc(b.x + s - b.r * 0.35, b.y - b.r * 0.2, b.r * 0.68, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(b.x + s + b.r * 0.4, b.y - b.r * 0.05, b.r * 0.55, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(b.x + s - b.r * 0.05, b.y - b.r * 0.5, b.r * 0.5, 0, Math.PI * 2); ctx.fill();
+    // Bright top-left highlight (the sunlit crown).
+    ctx.fillStyle = "#2b6e3a";
+    ctx.beginPath(); ctx.arc(b.x + s - b.r * 0.32, b.y - b.r * 0.42, b.r * 0.36, 0, Math.PI * 2); ctx.fill();
+    // Little rim highlight.
+    ctx.fillStyle = "rgba(140, 210, 130, 0.28)";
+    ctx.beginPath(); ctx.arc(b.x + s - b.r * 0.42, b.y - b.r * 0.5, b.r * 0.16, 0, Math.PI * 2); ctx.fill();
   }
 }
 
@@ -508,26 +530,37 @@ function drawBasePlatform(ctx: CanvasRenderingContext2D, team: Team) {
   const n = s.nexus;
   // Each base is a corner keep: a big chamfered square tucked into its corner
   // of the map, wide enough to hold the nexus, fountain and base turrets.
-  const R = 1250;              // reach from the nexus into the map
-  const cut = 520;             // chamfer facing the battlefield
+  const R = 1050;              // reach from the nexus into the map
+  const cut = 440;             // chamfer facing the battlefield
   const sign = team === "blue" ? 1 : -1;   // blue opens up-right, red down-left
   const cx = n.x, cy = n.y;
-  const nearX = cx - sign * 620, nearY = cy + sign * 620;  // corner side
+  const nearX = cx - sign * 520, nearY = cy + sign * 520;  // corner side
   const farX = cx + sign * R, farY = cy - sign * R;        // map side
+
+  const drawKeep = (inset: number, fillA: string, strokeA: number) => {
+    const nx = nearX - sign * inset, ny = nearY + sign * inset;
+    const fx = farX + sign * inset, fy = farY - sign * inset;
+    ctx.beginPath();
+    ctx.moveTo(nx, ny);
+    ctx.lineTo(fx, ny);
+    ctx.lineTo(fx, fy + sign * cut);
+    ctx.lineTo(fx - sign * cut, fy);
+    ctx.lineTo(nx, fy);
+    ctx.closePath();
+    ctx.fillStyle = fillA;
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = strokeA;
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  };
+
   ctx.save();
-  ctx.fillStyle = team === "blue" ? "rgba(40,80,140,0.18)" : "rgba(150,45,45,0.18)";
-  ctx.beginPath();
-  ctx.moveTo(nearX, nearY);
-  ctx.lineTo(farX, nearY);
-  ctx.lineTo(farX, farY + sign * cut);
-  ctx.lineTo(farX - sign * cut, farY);
-  ctx.lineTo(nearX, farY);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = color;
-  ctx.globalAlpha = 0.35;
-  ctx.lineWidth = 4;
-  ctx.stroke();
+  // Layered plates (outer -> inner) for depth, like the reference art.
+  drawKeep(0, team === "blue" ? "rgba(30,60,110,0.28)" : "rgba(120,35,35,0.28)", 0.25);
+  drawKeep(160, team === "blue" ? "rgba(40,80,140,0.35)" : "rgba(150,45,45,0.35)", 0.35);
+  drawKeep(320, team === "blue" ? "rgba(50,100,170,0.42)" : "rgba(180,55,55,0.42)", 0.45);
   ctx.restore();
 }
 

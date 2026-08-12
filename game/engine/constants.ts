@@ -11,15 +11,15 @@ export const SNAPSHOT_RATE = 20; // snapshots broadcast per second
 // edges, a mid lane running the diagonal, and a full jungle between them
 // with camps and two epic monster pits.
 export const WORLD = {
-  width: 9600,
-  height: 9600,
+  width: 7800,
+  height: 7800,
   // The playable band (out of these bounds = the void / death).
-  laneTop: 140,
-  laneBottom: 9460,
+  laneTop: 120,
+  laneBottom: 7680,
 };
 
 // Half-width of a lane road (the dirt ribbon minions walk down).
-export const ROAD_HALF = 170;
+export const ROAD_HALF = 155;
 
 // Legacy convenience: the middle of the map.
 export const LANE_Y = WORLD.height / 2;
@@ -35,34 +35,34 @@ export type LaneId = "top" | "mid" | "bot";
 export const LANES: LaneId[] = ["top", "mid", "bot"];
 
 // Base anchors (corners of the square).
-const BLUE_NEXUS: Pt = { x: 1000, y: 8600 };
-const BLUE_FOUNTAIN: Pt = { x: 640, y: 8960 };
+const BLUE_NEXUS: Pt = { x: 900, y: 6900 };
+const BLUE_FOUNTAIN: Pt = { x: 560, y: 7250 };
 
 // --------------------------------------------------------------------------
 // Lane paths (always written blue -> red). Minions of each team walk these.
 // --------------------------------------------------------------------------
 // Top lane: up the left edge, then right along the top edge.
 const TOP_PATH: Pt[] = [
-  { x: 820, y: 7900 },
-  { x: 700, y: 6200 },
-  { x: 700, y: 3600 },
-  { x: 900, y: 2000 },
-  { x: 2000, y: 900 },
-  { x: 3600, y: 700 },
-  { x: 6200, y: 700 },
-  { x: 7900, y: 820 },
+  { x: 720, y: 6400 },
+  { x: 620, y: 5000 },
+  { x: 620, y: 2900 },
+  { x: 780, y: 1650 },
+  { x: 1650, y: 780 },
+  { x: 2900, y: 620 },
+  { x: 5000, y: 620 },
+  { x: 6400, y: 720 },
 ];
 // Bot lane: the exact mirror (down/right along the bottom, then up the right edge).
 const BOT_PATH: Pt[] = mirrorPath(TOP_PATH);
 // Mid lane: straight down the diagonal through the center of the map.
 const MID_PATH: Pt[] = [
-  { x: 1500, y: 8100 },
-  { x: 2600, y: 7000 },
-  { x: 3700, y: 5900 },
-  { x: 4800, y: 4800 },
-  { x: 5900, y: 3700 },
-  { x: 7000, y: 2600 },
-  { x: 8100, y: 1500 },
+  { x: 1250, y: 6550 },
+  { x: 2150, y: 5650 },
+  { x: 3050, y: 4750 },
+  { x: 3900, y: 3900 },
+  { x: 4750, y: 3050 },
+  { x: 5650, y: 2150 },
+  { x: 6550, y: 1250 },
 ];
 
 export const LANE_PATHS: Record<LaneId, Pt[]> = {
@@ -159,29 +159,29 @@ function laneOffset(path: Pt[], t: number, off: number): Pt {
 // Every lane gets cover on both flanks, and the mirror keeps it fair.
 function buildBushSpots(): { x: number; y: number; r: number }[] {
   const out: { x: number; y: number; r: number }[] = [];
-  const laneTs = [0.18, 0.34, 0.5, 0.66, 0.82];
+  const laneTs = [0.20, 0.36, 0.5, 0.64, 0.80];
   for (const lane of LANES) {
     const path = LANE_PATHS[lane];
     for (const t of laneTs) {
-      out.push({ ...laneOffset(path, t, 420), r: 190 });
-      out.push({ ...laneOffset(path, t, -420), r: 190 });
+      out.push({ ...laneOffset(path, t, 340), r: 165 });
+      out.push({ ...laneOffset(path, t, -340), r: 165 });
     }
   }
   // Deep-jungle cover around the two epic pits and the river crossings.
   const jungle: Pt[] = [
-    { x: 2500, y: 3100 }, { x: 3900, y: 2400 }, { x: 2800, y: 4400 },
-    { x: 4200, y: 6000 }, { x: 2200, y: 6600 }, { x: 3400, y: 7600 },
+    { x: 2000, y: 2500 }, { x: 3100, y: 1900 }, { x: 2250, y: 3550 },
+    { x: 3350, y: 4750 }, { x: 1750, y: 5250 }, { x: 2700, y: 6050 },
   ];
   for (const j of jungle) {
-    out.push({ x: j.x, y: j.y, r: 210 });
+    out.push({ x: j.x, y: j.y, r: 180 });
     const m = mirror(j);
-    out.push({ x: m.x, y: m.y, r: 210 });
+    out.push({ x: m.x, y: m.y, r: 180 });
   }
   // Drop anything that ended up outside the arena or on top of a road.
   return out.filter(
     (b) =>
-      b.x > 300 && b.x < WORLD.width - 300 &&
-      b.y > 300 && b.y < WORLD.height - 300
+      b.x > 250 && b.x < WORLD.width - 250 &&
+      b.y > 250 && b.y < WORLD.height - 250
   );
 }
 
@@ -246,15 +246,15 @@ export interface CampDef { id: number; x: number; y: number; kind: MonsterKind; 
 // Blue-side camps; every one of them is mirrored onto the red side below.
 const BLUE_CAMPS: { x: number; y: number; kind: MonsterKind }[] = [
   // Upper-left jungle quadrant (between top lane and mid lane).
-  { x: 1700, y: 5900, kind: "beetle" },
-  { x: 2600, y: 5100, kind: "spider" },
-  { x: 1900, y: 4300, kind: "crab"   },
-  { x: 3200, y: 6100, kind: "beetle" },
+  { x: 1450, y: 4700, kind: "beetle" },
+  { x: 2100, y: 4100, kind: "spider" },
+  { x: 1550, y: 3500, kind: "crab"   },
+  { x: 2600, y: 4900, kind: "beetle" },
   // Lower-right jungle quadrant (between mid lane and bot lane).
-  { x: 3100, y: 8000, kind: "beetle" },
-  { x: 4400, y: 7500, kind: "spider" },
-  { x: 5400, y: 8300, kind: "crab"   },
-  { x: 4000, y: 8800, kind: "beetle" },
+  { x: 2500, y: 6450, kind: "beetle" },
+  { x: 3550, y: 6050, kind: "spider" },
+  { x: 4350, y: 6700, kind: "crab"   },
+  { x: 3250, y: 7100, kind: "beetle" },
 ];
 
 export const JUNGLE_CAMPS: CampDef[] = (() => {
@@ -266,11 +266,11 @@ export const JUNGLE_CAMPS: CampDef[] = (() => {
     out.push({ id: id++, x: m.x, y: m.y, kind: c.kind });
   }
   // River scuttlers, on the perpendicular running corner to corner.
-  out.push({ id: id++, x: 2900, y: 2900, kind: "crab" });
-  out.push({ id: id++, x: 6700, y: 6700, kind: "crab" });
+  out.push({ id: id++, x: 2350, y: 2350, kind: "crab" });
+  out.push({ id: id++, x: 5450, y: 5450, kind: "crab" });
   // Epic pits: Barón in the upper-left river, Draggón in the lower-right river.
-  out.push({ id: id++, x: 3700, y: 3700, kind: "baron" });
-  out.push({ id: id++, x: 5900, y: 5900, kind: "dragon" });
+  out.push({ id: id++, x: 3000, y: 3000, kind: "baron" });
+  out.push({ id: id++, x: 4800, y: 4800, kind: "dragon" });
   return out;
 })();
 
@@ -369,9 +369,9 @@ export const NEXUS_RADIUS = 78;
 // move speed so the huge map is traversable.
 export const CHAMP = {
   hpScale: 1.3,
-  // The arena is enormous now (a full three-lane square), so champions get a
-  // healthy flat move-speed bonus to make roaming between lanes viable.
-  msBonus: 90,
+  // The arena is a big three-lane square, so champions get a flat move-speed
+  // bonus to make roaming between lanes viable.
+  msBonus: 70,
 };
 
 // Minion economy / combat.
@@ -384,7 +384,7 @@ export const MINION = {
     ad: 13,
     range: 60,
     attackSpeed: 1.0,
-    moveSpeed: 260,
+    moveSpeed: 235,
     gold: 22,
     xp: 62,
   },
@@ -393,7 +393,7 @@ export const MINION = {
     ad: 26,
     range: 340,
     attackSpeed: 0.8,
-    moveSpeed: 260,
+    moveSpeed: 235,
     gold: 17,
     xp: 42,
   },
@@ -402,7 +402,7 @@ export const MINION = {
     ad: 44,
     range: 420,
     attackSpeed: 0.7,
-    moveSpeed: 250,
+    moveSpeed: 225,
     gold: 42,
     xp: 95,
   },
@@ -413,11 +413,12 @@ export const MINION = {
 
 export const TURRET = {
   // Three lanes means three times the siege pressure, so structures are much
-  // beefier than they were on the old single-lane map.
-  hp: 5600,
-  ad: 185,
-  range: 500,
-  attackSpeed: 0.9,
+  // beefier than they were on the old single-lane map. Tuned down slightly
+  // now that the arena itself is smaller so towers actually fall in a match.
+  hp: 4600,
+  ad: 195,
+  range: 520,
+  attackSpeed: 0.95,
   gold: 250,
   // Bonus armor/MR so early dives are punished.
   armor: 42,
@@ -425,10 +426,10 @@ export const TURRET = {
 };
 
 export const NEXUS = {
-  hp: 14000,
-  ad: 125,
-  range: 480,
-  attackSpeed: 0.7,
+  hp: 11000,
+  ad: 135,
+  range: 500,
+  attackSpeed: 0.75,
   armor: 60,
   mr: 60,
 };

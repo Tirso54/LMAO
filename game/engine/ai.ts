@@ -1,17 +1,41 @@
-import { Champion, Entity, GameState, PlayerInput, CastCommand, Team } from "./types";
+import { Champion, Entity, GameState, Monster, PlayerInput, CastCommand, Team } from "./types";
 import { CHAMPIONS } from "./champions";
 import { RECOMMENDED, ITEMS } from "./items";
 import { STRUCTURES, WORLD, LANES, LaneId, lanePathFor, pointAlong, progressAlong } from "./constants";
 import { add, angleTo, dist, fromAngle, norm, sub, scale, clamp } from "./math";
 import { applyInput, unspentPoints } from "./simulation";
-import { enemyTeam, isChampion, slowMultiplier } from "./combat";
+import { enemyTeam, isChampion, slowMultiplier, structureVulnerable } from "./combat";
 
 // Difficulty knobs (tuned up: sharper reactions, better aim, smarter aggression).
 const DIFF = {
-  casual: { react: 0.3, aggro: 0.8, skillAim: 0.62, retreatHp: 0.26, jungle: true },
-  normal: { react: 0.16, aggro: 1.0, skillAim: 0.82, retreatHp: 0.3, jungle: true },
-  savage: { react: 0.08, aggro: 1.25, skillAim: 0.96, retreatHp: 0.36, jungle: true },
+  casual: { react: 0.28, aggro: 0.85, skillAim: 0.66, retreatHp: 0.28, jungle: true, teamfight: 0.7 },
+  normal: { react: 0.14, aggro: 1.05, skillAim: 0.86, retreatHp: 0.32, jungle: true, teamfight: 1.0 },
+  savage: { react: 0.07, aggro: 1.3, skillAim: 0.97, retreatHp: 0.38, jungle: true, teamfight: 1.2 },
 };
+
+// Bot roles: one jungler per team; the rest fill top/mid/bot in order.
+type BotRole = "top" | "mid" | "bot" | "jungle";
+const ROLE_LANE: Record<BotRole, LaneId> = { top: "top", mid: "mid", bot: "bot", jungle: "mid" };
+
+function botRole(state: GameState, c: Champion): BotRole {
+  const cached = c.passiveData.roleIdx;
+  const ROLES: BotRole[] = ["mid", "top", "bot", "jungle", "bot"];
+  if (cached != null) return ROLES[cached] || "mid";
+  // Assign by seniority within the team: mid first (safest lane), then top,
+  // then bot, then a jungler when there are at least four allies.
+  const teamMates: Champion[] = [];
+  for (const id in state.champions) {
+    const o = state.champions[id];
+    if (o.team === c.team) teamMates.push(o);
+  }
+  teamMates.sort((a, b) => a.id - b.id);
+  const idx = teamMates.findIndex((o) => o.id === c.id);
+  const teamSize = teamMates.length;
+  // Pattern: idx0=mid, idx1=top, idx2=bot, idx3=jungle, idx4=bot(support-ish).
+  const role: BotRole = teamSize >= 4 && idx === 3 ? "jungle" : (ROLES[idx] || "mid");
+  c.passiveData.roleIdx = ROLES.indexOf(role);
+  return role;
+}
 
 export function updateBots(state: GameState, dt: number) {
   if (state.phase !== "playing") return;
@@ -96,25 +120,58 @@ function lastHittable(state: GameState, c: Champion): Entity | null {
   return killable || nearest;
 }
 
-/** Which lane this bot is assigned to (stable, spread across the team). */
+/** Which lane this bot is assigned to (from its role). */
 function botLane(state: GameState, c: Champion): LaneId {
-  const cached = c.passiveData.laneIdx;
-  if (cached != null) return LANES[cached];
-  // Count how many allies already claimed each lane and take the emptiest.
-  const counts: Record<LaneId, number> = { top: 0, mid: 0, bot: 0 };
+  return ROLE_LANE[botRole(state, c)];
+}
+
+/** Count teammates near a point (for grouping / teamfight logic). */
+function alliesNear(state: GameState, c: Champion, p: { x: number; y: number }, r: number): number {
+  let n = 0;
   for (const id in state.champions) {
     const o = state.champions[id];
-    if (o.team !== c.team || o.id === c.id) continue;
-    const l = o.passiveData.laneIdx;
-    if (l != null) counts[LANES[l]]++;
+    if (o.team !== c.team || o.id === c.id || !o.alive) continue;
+    if (dist(o.pos, p) <= r) n++;
   }
-  let pick: LaneId = "mid";
-  let bestN = Infinity;
-  for (const l of LANES) {
-    if (counts[l] < bestN) { bestN = counts[l]; pick = l; }
+  return n;
+}
+
+function enemiesNear(state: GameState, c: Champion, p: { x: number; y: number }, r: number): number {
+  let n = 0;
+  for (const id in state.champions) {
+    const o = state.champions[id];
+    if (o.team === c.team || !o.alive) continue;
+    if (o.buffs.some((b) => b.id === "stealth")) continue;
+    if (dist(o.pos, p) <= r) n++;
   }
-  c.passiveData.laneIdx = LANES.indexOf(pick);
-  return pick;
+  return n;
+}
+
+/** Find the epic objective (Barón or Draggón) worth taking, if any. */
+function epicObjective(state: GameState, c: Champion): Monster | null {
+  let best: Monster | null = null;
+  let bd = Infinity;
+  for (const id in state.monsters) {
+    const mo = state.monsters[id];
+    if (!mo.alive || !mo.epic) continue;
+    const d = dist(c.pos, mo.pos);
+    if (d < bd) { bd = d; best = mo; }
+  }
+  return best;
+}
+
+/** Any turret in the enemy's front line that we could actually damage. */
+function nearestBreakableTurret(state: GameState, c: Champion) {
+  let best = null as null | { x: number; y: number; id: number };
+  let bd = Infinity;
+  for (const id in state.turrets) {
+    const t = state.turrets[id];
+    if (!t.alive || t.team === c.team) continue;
+    if (!structureVulnerable(state, t)) continue;
+    const d = dist(c.pos, t.pos);
+    if (d < bd) { bd = d; best = { x: t.pos.x, y: t.pos.y, id: t.id }; }
+  }
+  return best;
 }
 
 /** The furthest-forward point along the bot's lane its team has pushed to. */
@@ -138,15 +195,16 @@ function decideBot(state: GameState, c: Champion, diff: typeof DIFF.normal) {
   const input: PlayerInput = { seq, casts: [] };
   const def = CHAMPIONS[c.championId];
   const hpRatio = c.hp / c.maxHp;
-  const enemy = nearestEnemyChamp(state, c, def.stats.attackRange + 600);
-  const anyEnemyChamp = nearestEnemyChamp(state, c, 2000);
+  const manaRatio = c.mana / Math.max(1, c.maxMana);
+  const enemy = nearestEnemyChamp(state, c, def.stats.attackRange + 700);
+  const anyEnemyChamp = nearestEnemyChamp(state, c, 2200);
   const ownFountain = STRUCTURES[c.team].fountain;
+  const role = botRole(state, c);
 
-  // Recall if very low and safe, in own half with no enemy near.
+  // Recall if very low and safe.
   const nearEnemy = enemy && dist(c.pos, enemy.pos) < 700;
-  if (hpRatio < 0.25 && !nearEnemy && c.mana >= 0) {
-    // Move back toward fountain; recall if close-ish and safe.
-    if (dist(c.pos, ownFountain) < 1200 && !anyEnemyClose(state, c, 900)) {
+  if (hpRatio < 0.25 && !nearEnemy) {
+    if (dist(c.pos, ownFountain) < 1400 && !anyEnemyClose(state, c, 900)) {
       input.recall = true;
       applyInput(state, c.ownerId, input);
       return;
@@ -159,69 +217,117 @@ function decideBot(state: GameState, c: Champion, diff: typeof DIFF.normal) {
   // Retreat when low and enemies threaten.
   if (hpRatio < diff.retreatHp && nearEnemy) {
     input.move = retreatPoint(c);
-    // Use escape/mobility abilities.
     castEscape(state, c, input, enemy!);
     applyInput(state, c.ownerId, input);
     return;
   }
 
-  // Engage nearby enemy champion if reasonable.
+  const aliveAllies = countAliveChamps(state, c.team);
+  const aliveEnemies = countAliveChamps(state, enemyTeam(c.team));
+  const siegeWindow = aliveEnemies === 0 || (aliveAllies - aliveEnemies >= 1 && hpRatio > 0.5);
+
+  // Teamfight logic: if a group is fighting nearby, jump in intelligently.
   if (enemy) {
+    const midpoint = { x: (c.pos.x + enemy.pos.x) / 2, y: (c.pos.y + enemy.pos.y) / 2 };
+    const alliesHere = alliesNear(state, c, midpoint, 900);
+    const enemiesHere = enemiesNear(state, c, midpoint, 900);
     const d = dist(c.pos, enemy.pos);
-    const engageRange = def.stats.attackRange + 240 * diff.aggro;
-    const advantage = hpRatio > 0.4 && (c.level >= enemy.level - 1);
-    if (d <= engageRange && advantage) {
-      input.attackTarget = enemy.id;
-      castOffense(state, c, input, enemy, diff);
-      // Kite: ranged step back if enemy is melee & close.
+
+    // Focus lowest-hp enemy for kills.
+    const lowest = lowestHpEnemy(state, c, 900);
+    const target = lowest || enemy;
+    const targetRatio = target.hp / target.maxHp;
+
+    // Commit if we have the numbers or the target is executable.
+    const numberEdge = alliesHere + 1 >= enemiesHere;
+    const canExecute = targetRatio < 0.35 && hpRatio > 0.45;
+    const engageRange = def.stats.attackRange + 260 * diff.aggro;
+
+    if (d <= engageRange && (numberEdge || canExecute) && hpRatio > 0.4) {
+      input.attackTarget = target.id;
+      castOffense(state, c, input, target, diff);
+      // Kite: ranged steps back if the target is melee & too close.
       if (def.ranged && d < def.stats.attackRange * 0.6) {
-        input.move = retreatPoint(c);
-        input.attackTarget = enemy.id; // still attack while repositioning (attack-move-ish)
-        input.attackMove = enemy.pos;
+        const away = retreatPoint(c);
+        input.move = away;
+        input.attackMove = target.pos;
       }
       applyInput(state, c.ownerId, input);
       return;
     }
+
+    // Outnumbered: bail out.
+    if (enemiesHere > alliesHere + 1) {
+      input.move = retreatPoint(c);
+      castEscape(state, c, input, enemy);
+      applyInput(state, c.ownerId, input);
+      return;
+    }
+  }
+
+  // Objective control: junglers and healthy siege windows target Barón/Draggón.
+  if ((role === "jungle" || siegeWindow) && hpRatio > 0.55 && manaRatio > 0.4) {
+    const epic = epicObjective(state, c);
+    if (epic && enemiesNear(state, c, epic.pos, 900) === 0) {
+      const d = dist(c.pos, epic.pos);
+      if (d < 1600) {
+        input.attackTarget = epic.id;
+        input.attackMove = { x: epic.pos.x, y: epic.pos.y };
+        applyInput(state, c.ownerId, input);
+        return;
+      }
+    }
+  }
+
+  // Junglers clear camps as a primary occupation.
+  if (role === "jungle" && hpRatio > 0.4) {
+    const camp = nearestCamp(state, c, hpRatio);
+    if (camp) {
+      const cd = dist(c.pos, camp.pos);
+      if (cd < 1400) {
+        input.attackTarget = camp.id;
+        input.attackMove = { x: camp.pos.x, y: camp.pos.y };
+        applyInput(state, c.ownerId, input);
+        return;
+      }
+    }
+  }
+
+  // If a nearby lane is falling behind, help push it (gank in).
+  if (role !== "jungle" && !siegeWindow) {
+    const gank = findWeakLane(state, c);
+    if (gank && dist(c.pos, gank) < 1400 && hpRatio > 0.5) {
+      input.attackMove = gank;
+      applyInput(state, c.ownerId, input);
+      return;
+    }
+  }
+
+  // Break turrets that are actually breakable and near us.
+  const breakable = nearestBreakableTurret(state, c);
+  if (breakable && dist(c.pos, breakable) < 900 && (alliesNear(state, c, breakable, 500) >= 1 || siegeWindow)) {
+    input.attackTarget = breakable.id;
+    input.attackMove = { x: breakable.x, y: breakable.y };
+    applyInput(state, c.ownerId, input);
+    return;
   }
 
   // Otherwise farm / push.
   const target = lastHittable(state, c);
   if (target && dist(c.pos, target.pos) <= c.attackRange + 300) {
     input.attackTarget = target.id;
-    // Occasionally poke enemy champ with a spare ability.
     if (enemy && dist(c.pos, enemy.pos) < 700) castPoke(state, c, input, enemy, diff);
     applyInput(state, c.ownerId, input);
     return;
   }
 
-  // Read the numbers: if the enemy is dead or outnumbered, it's a siege window —
-  // commit to the base and end the game instead of farming or hovering at mid.
-  const aliveAllies = countAliveChamps(state, c.team);
-  const aliveEnemies = countAliveChamps(state, enemyTeam(c.team));
-  const siegeWindow = aliveEnemies === 0 || (aliveAllies - aliveEnemies >= 1 && hpRatio > 0.5);
-
-  // No lane threats: clear a jungle camp only if one is basically on the way
-  // and we're healthy — never during a siege window.
-  if (diff.jungle && hpRatio > 0.7 && !siegeWindow) {
-    const camp = nearestCamp(state, c, hpRatio);
-    if (camp) {
-      input.attackMove = { x: camp.pos.x, y: camp.pos.y };
-      applyInput(state, c.ownerId, input);
-      return;
-    }
-  }
-
-  // Push the lane toward the enemy base so games end. Attack-move toward the
-  // enemy nexus; auto-acquire grabs minions & structures en route. During a
-  // siege window, drive all the way into the base; otherwise stay with minions.
+  // Push the lane; commit to nexus in a siege window.
   const enemyNexus = c.team === "blue" ? STRUCTURES.red.nexus : STRUCTURES.blue.nexus;
   if (siegeWindow) {
-    // Commit: walk straight into the enemy base and end it.
     input.attackMove = { x: enemyNexus.x, y: enemyNexus.y };
     applyInput(state, c.ownerId, input);
     return;
   }
-  // Push our own lane: advance a bit past the minion frontier when healthy.
   const lane = botLane(state, c);
   const path = lanePathFor(lane, c.team);
   const f = frontier(state, c);
@@ -229,6 +335,43 @@ function decideBot(state: GameState, c: Champion, diff: typeof DIFF.normal) {
   const push = pointAlong(path, Math.min(0.9, progressAlong(path, f) + ahead));
   input.attackMove = { x: push.x, y: push.y };
   applyInput(state, c.ownerId, input);
+}
+
+/** Lowest-HP enemy nearby (for focus-fire in teamfights). */
+function lowestHpEnemy(state: GameState, c: Champion, r: number): Champion | null {
+  let best: Champion | null = null;
+  let bestHp = Infinity;
+  for (const id in state.champions) {
+    const e = state.champions[id];
+    if (!e.alive || e.team === c.team) continue;
+    if (e.buffs.some((b) => b.id === "stealth")) continue;
+    if (dist(c.pos, e.pos) > r) continue;
+    if (e.hp < bestHp) { bestHp = e.hp; best = e; }
+  }
+  return best;
+}
+
+/** Point on the ally lane furthest behind the enemy push (a gank target). */
+function findWeakLane(state: GameState, c: Champion): { x: number; y: number } | null {
+  let worst: LaneId | null = null;
+  let worstT = -1;
+  for (const lane of LANES) {
+    const path = lanePathFor(lane, c.team);
+    let front = 0;
+    for (const id in state.minions) {
+      const m = state.minions[id];
+      if (!m.alive || m.team !== c.team || m.lane !== lane) continue;
+      front = Math.max(front, progressAlong(path, m.pos));
+    }
+    // Lower front = enemy is pushing that lane at us: worth ganking.
+    if (front < 0.35 && front > 0.02 && front > worstT) {
+      worstT = front;
+      worst = lane;
+    }
+  }
+  if (!worst) return null;
+  const path = lanePathFor(worst, c.team);
+  return pointAlong(path, Math.max(0.08, worstT + 0.05));
 }
 
 function countAliveChamps(state: GameState, team: Team): number {
@@ -240,14 +383,14 @@ function countAliveChamps(state: GameState, team: Team): number {
   return n;
 }
 
-function nearestCamp(state: GameState, c: Champion, hpRatio: number): { pos: { x: number; y: number } } | null {
-  let best: { pos: { x: number; y: number } } | null = null;
-  let bd = 1150; // only camps essentially on the bot's path
+function nearestCamp(state: GameState, c: Champion, hpRatio: number): Monster | null {
+  let best: Monster | null = null;
+  let bd = 1400;
   for (const id in state.monsters) {
     const mo = state.monsters[id];
     if (!mo.alive) continue;
     // Only very healthy bots contest the epic pits (Draggón / Nashø).
-    if (mo.epic && hpRatio < 0.85) continue;
+    if (mo.epic && hpRatio < 0.75) continue;
     const d = dist(c.pos, mo.pos);
     if (d < bd) { bd = d; best = mo; }
   }

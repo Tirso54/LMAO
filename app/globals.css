@@ -418,9 +418,10 @@ select {
   letter-spacing: 0.2px;
 }
 
-/* Top-down arena preview */
+/* Top-down arena preview: a square battleground with 3 lanes and 2 corner
+   bases, matching the in-game map. */
 .arena-preview {
-  max-width: 780px;
+  max-width: 520px;
   margin: 40px auto 0;
   padding: 12px;
   border-radius: var(--radius-lg);
@@ -430,93 +431,114 @@ select {
 }
 .ap-field {
   position: relative;
-  height: 260px;
-  border-radius: 14px;
+  aspect-ratio: 1;
+  border-radius: 16px;
   overflow: hidden;
   background:
-    radial-gradient(150px 150px at 22% 32%, rgba(120, 190, 120, 0.12), transparent 70%),
-    radial-gradient(160px 160px at 75% 66%, rgba(120, 190, 120, 0.12), transparent 70%),
-    linear-gradient(180deg, #123018, #1a4325 50%, #102a16);
+    radial-gradient(60% 60% at 50% 50%, rgba(120, 190, 120, 0.06), transparent 90%),
+    linear-gradient(180deg, #0f2818 0%, #17372a 50%, #0d2416 100%);
 }
 .ap-grid {
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 46px 46px;
-  mask-image: radial-gradient(120% 100% at 50% 50%, #000 40%, transparent 90%);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(120% 100% at 50% 50%, #000 55%, transparent 100%);
 }
+/* Three lane roads as CSS shapes tracing the map's outline. */
 .ap-road {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 52px;
-  transform: translateY(-50%);
   background: linear-gradient(180deg, #6e5230, #8a6a3e 50%, #6e5230);
-  border-top: 3px solid rgba(40, 90, 50, 0.85);
-  border-bottom: 3px solid rgba(40, 90, 50, 0.85);
+  box-shadow: 0 0 0 3px rgba(40, 90, 50, 0.85);
+  border-radius: 22px;
+}
+.ap-road.top-h { left: 12%; right: 12%; top: 8%; height: 26px; }
+.ap-road.top-v { left: 8%; width: 26px; top: 8%; bottom: 12%; }
+.ap-road.bot-h { left: 12%; right: 12%; bottom: 8%; height: 26px; }
+.ap-road.bot-v { right: 8%; width: 26px; top: 12%; bottom: 8%; }
+.ap-road.mid {
+  left: 50%; top: 50%; width: 24px; height: 105%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  transform-origin: center;
 }
 .ap-base {
   position: absolute;
-  top: 8%;
-  bottom: 8%;
-  width: 130px;
-  border-radius: 16px;
+  width: 26%;
+  height: 26%;
+  border-radius: 22px;
 }
 .ap-base.blue {
-  left: 12px;
-  background: rgba(40, 80, 140, 0.2);
-  border: 1px solid rgba(90, 162, 224, 0.5);
+  left: 3%;
+  bottom: 3%;
+  background: linear-gradient(135deg, rgba(50,100,170,0.35), rgba(30,60,110,0.28));
+  border: 1px solid rgba(90, 162, 224, 0.55);
+  clip-path: polygon(0 0, 100% 0, 100% 55%, 55% 100%, 0 100%);
 }
 .ap-base.red {
-  right: 12px;
-  background: rgba(150, 45, 45, 0.2);
-  border: 1px solid rgba(226, 106, 97, 0.5);
+  right: 3%;
+  top: 3%;
+  background: linear-gradient(135deg, rgba(180,55,55,0.35), rgba(120,35,35,0.28));
+  border: 1px solid rgba(226, 106, 97, 0.55);
+  clip-path: polygon(45% 0, 100% 0, 100% 100%, 0 100%, 0 45%);
 }
 .ap-nexus {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 24px;
-  height: 24px;
-  transform: translate(-50%, -50%) rotate(45deg);
+  width: 22px;
+  height: 22px;
+  transform: rotate(45deg);
   border-radius: 5px;
 }
 .ap-base.blue .ap-nexus {
+  left: 30%; top: 30%;
   background: var(--blue);
   box-shadow: 0 0 26px 5px var(--blue-glow);
   animation: apPulse 2.4s ease-in-out infinite;
 }
 .ap-base.red .ap-nexus {
+  right: 30%; bottom: 30%;
   background: var(--red);
   box-shadow: 0 0 26px 5px var(--red-glow);
   animation: apPulse 2.4s ease-in-out infinite 1.2s;
 }
+.ap-turret {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.ap-turret.blue {
+  background: #7fc0ff;
+  box-shadow: 0 0 8px 2px rgba(90, 162, 224, 0.7);
+}
+.ap-turret.red {
+  background: #ff8b82;
+  box-shadow: 0 0 8px 2px rgba(226, 106, 97, 0.7);
+}
 .ap-bush {
   position: absolute;
-  width: 46px;
-  height: 32px;
+  width: 34px;
+  height: 26px;
   border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #1b5029, #123a1e);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
+  background: radial-gradient(circle at 35% 30%, #2b6e3a 0%, #1a4a26 40%, #0e2a17 100%);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.45);
 }
 .ap-champ {
   position: absolute;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   border: 2px solid #ffd23f;
 }
 .ap-champ.blue {
   background: #3aa0ff;
   box-shadow: 0 0 12px rgba(58, 160, 255, 0.7);
-  animation: apDriftB 5s ease-in-out infinite;
+  animation: apDriftB 6s ease-in-out infinite;
 }
 .ap-champ.red {
   background: #ff5a52;
   box-shadow: 0 0 12px rgba(255, 90, 82, 0.7);
-  animation: apDriftR 6s ease-in-out infinite;
+  animation: apDriftR 7s ease-in-out infinite;
 }
 @keyframes apPulse {
   0%, 100% { filter: brightness(1); }
@@ -524,11 +546,11 @@ select {
 }
 @keyframes apDriftB {
   0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(46px, -16px); }
+  50% { transform: translate(30px, -22px); }
 }
 @keyframes apDriftR {
   0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(-40px, 18px); }
+  50% { transform: translate(-26px, 20px); }
 }
 
 /* Sections */
