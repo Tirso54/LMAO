@@ -150,6 +150,8 @@ export interface Minion extends Entity {
   goldValue: number;
   xpValue: number;
   targetId: number | null;
+  // Which of the three lanes this minion marches down.
+  lane: "top" | "mid" | "bot";
   // Waypoint index along the lane path for this team.
   waypoint: number;
   aggroLockId: number | null;
@@ -162,7 +164,9 @@ export interface Turret extends Entity {
   attackRange: number;
   attackCooldown: number;
   targetId: number | null;
-  order: number; // 0 = outer, 1 = inner, ... higher = closer to nexus
+  // Which lane this turret guards (base turrets have no lane).
+  lane: "top" | "mid" | "bot" | null;
+  order: number; // 3 = outer, 2 = inner, 1 = inhibitor, 0 = base turret
   // Escalating damage on the same champion target.
   focusTargetId: number | null;
   focusStacks: number;

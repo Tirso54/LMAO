@@ -13,8 +13,9 @@ import {
 } from "./types";
 import {
   DT,
-  LANE_WAYPOINTS,
-  LANE_Y,
+  LANES,
+  LaneId,
+  lanePathFor,
   MINION,
   MAX_LEVEL,
   NEXUS,
@@ -59,6 +60,7 @@ import {
   isStunnedOrAirborne,
   killEntity,
   slowMultiplier,
+  structureVulnerable,
 } from "./combat";
 import { recomputeChampStats } from "./stats";
 import { ABILITY_HANDLERS, segHit } from "./abilities";
@@ -647,8 +649,8 @@ function acquireTarget(state: GameState, champ: Champion): Entity | null {
   for (const id in state.champions) consider(state.champions[id], 0);
   for (const id in state.minions) consider(state.minions[id], 400);
   for (const id in state.monsters) consider(state.monsters[id], 600);
-  for (const id in state.turrets) consider(state.turrets[id], 900);
-  for (const id in state.nexuses) consider(state.nexuses[id], 1200);
+  for (const id in state.turrets) if (structureVulnerable(state, state.turrets[id])) consider(state.turrets[id], 900);
+  for (const id in state.nexuses) if (structureVulnerable(state, state.nexuses[id])) consider(state.nexuses[id], 1200);
   return best;
 }
 
@@ -977,22 +979,32 @@ function updateMinionSpawns(state: GameState, dt: number) {
 }
 
 function spawnWave(state: GameState, team: Team) {
-  const spawn = STRUCTURES[team].minionSpawn;
-  const forward = team === "blue" ? 1 : -1;
   const wave = state.minionWave;
   const order: Minion["minionType"][] = [];
   for (let i = 0; i < MINION.perWave.melee; i++) order.push("melee");
   for (let i = 0; i < MINION.perWave.caster; i++) order.push("caster");
   if (wave % MINION.perWave.cannonEvery === 0) order.push("cannon");
-  order.forEach((type, i) => {
-    createMinion(state, team, type, {
-      x: spawn.x - forward * i * 46,
-      y: LANE_Y + (i % 2 === 0 ? -1 : 1) * (18 + (i % 3) * 8),
+  // One full wave marches down each of the three lanes.
+  for (const lane of LANES) {
+    const path = lanePathFor(lane, team);
+    const spawn = path[0];
+    // Step the wave backwards along the lane so they file out in a column.
+    const next = path[1] || path[0];
+    const dx = next.x - spawn.x, dy = next.y - spawn.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const back = { x: -dx / len, y: -dy / len };
+    const side = { x: -back.y, y: back.x };
+    order.forEach((type, i) => {
+      const lateral = (i % 2 === 0 ? -1 : 1) * (18 + (i % 3) * 8);
+      createMinion(state, team, type, lane, {
+        x: spawn.x + back.x * i * 46 + side.x * lateral,
+        y: spawn.y + back.y * i * 46 + side.y * lateral,
+      });
     });
-  });
+  }
 }
 
-function createMinion(state: GameState, team: Team, type: Minion["minionType"], pos: { x: number; y: number }) {
+function createMinion(state: GameState, team: Team, type: Minion["minionType"], lane: LaneId, pos: { x: number; y: number }) {
   const base = MINION[type];
   const minutes = state.time / 60;
   const hpScale = 1 + MINION.hpGrowthPerMin * minutes;
@@ -1009,6 +1021,7 @@ function createMinion(state: GameState, team: Team, type: Minion["minionType"], 
     radius: MINION_RADIUS,
     alive: true,
     minionType: type,
+    lane,
     attackDamage: base.ad * adScale,
     attackRange: base.range,
     attackSpeed: base.attackSpeed,
@@ -1072,14 +1085,14 @@ function pickMinionTarget(state: GameState, m: Minion): Entity | null {
   // Priority: enemy minions > champions > turret > nexus (minions prefer minions).
   for (const id in state.minions) consider(state.minions[id], 0);
   for (const id in state.champions) consider(state.champions[id], 120);
-  for (const id in state.turrets) consider(state.turrets[id], 300);
-  for (const id in state.nexuses) consider(state.nexuses[id], 500);
+  for (const id in state.turrets) if (structureVulnerable(state, state.turrets[id])) consider(state.turrets[id], 300);
+  for (const id in state.nexuses) if (structureVulnerable(state, state.nexuses[id])) consider(state.nexuses[id], 500);
   return best;
 }
 
 function marchLane(state: GameState, m: Minion, dt: number) {
-  // Blue walks forward through waypoints; red walks reversed.
-  const wps = m.team === "blue" ? LANE_WAYPOINTS : [...LANE_WAYPOINTS].reverse();
+  // Each minion follows its own lane, walked in its team's direction.
+  const wps = lanePathFor(m.lane, m.team);
   if (m.waypoint >= wps.length) {
     // Head to enemy nexus.
     const nx = m.team === "blue" ? STRUCTURES.red.nexus : STRUCTURES.blue.nexus;

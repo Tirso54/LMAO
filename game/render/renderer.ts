@@ -1,7 +1,10 @@
 import { Snapshot, ChampSnap, MinionSnap, MonsterSnap, StructSnap, ProjSnap, ZoneSnap } from "../net/protocol";
 import { FxEvent, Team } from "../engine/types";
 import { CHAMPIONS } from "../engine/champions";
-import { WORLD, STRUCTURES, LANE_Y, ROAD_HALF, BUSH_SPOTS, JUNGLE_CAMPS, MONSTER_KINDS } from "../engine/constants";
+import {
+  WORLD, STRUCTURES, ROAD_HALF, BUSH_SPOTS, JUNGLE_CAMPS, MONSTER_KINDS,
+  LANES, LANE_PATHS, distToNearestLane,
+} from "../engine/constants";
 
 export interface Camera {
   x: number;
@@ -240,12 +243,16 @@ let BUSHES: Deco[] | null = null;
 let CANDLES: { x: number; y: number }[] | null = null;
 let CLEARINGS: { x: number; y: number; r: number }[] | null = null;
 
-// Keep decor clear of the central road and the two base areas.
-function inBaseZone(x: number): boolean {
-  return x < 800 || x > WORLD.width - 800;
+// Keep decor clear of the lane roads and the two base areas.
+function inBaseZone(x: number, y: number): boolean {
+  for (const team of ["blue", "red"] as Team[]) {
+    const n = STRUCTURES[team].nexus;
+    if ((x - n.x) ** 2 + (y - n.y) ** 2 < 1500 ** 2) return true;
+  }
+  return false;
 }
-function onRoad(y: number): boolean {
-  return Math.abs(y - LANE_Y) < ROAD_HALF + 40;
+function onRoad(x: number, y: number): boolean {
+  return distToNearestLane({ x, y }) < ROAD_HALF + 60;
 }
 
 function inNamedBush(x: number, y: number): boolean {
@@ -286,13 +293,13 @@ function buildDeco() {
 
   // Small ambient bush clusters across the rest of the field (avoiding
   // the road, base zones, named bushes and jungle camps).
-  const clusterCount = 90;
+  const clusterCount = 320;
   for (let c = 0; c < clusterCount; c++) {
     let cx = 0, cy = 0, ok = false;
     for (let tries = 0; tries < 20; tries++) {
       cx = 200 + rng() * (WORLD.width - 400);
       cy = top + 60 + rng() * (bot - top - 120);
-      if (!inBaseZone(cx) && !onRoad(cy) && !inNamedBush(cx, cy) && !nearCamp(cx, cy)) { ok = true; break; }
+      if (!inBaseZone(cx, cy) && !onRoad(cx, cy) && !inNamedBush(cx, cy) && !nearCamp(cx, cy)) { ok = true; break; }
     }
     if (!ok) continue;
     const blobs = 3 + Math.floor(rng() * 4);
@@ -308,7 +315,7 @@ function buildDeco() {
     }
   }
   // Loose scatter in the far grass margins (beyond the playable band).
-  for (let i = 0; i < 120; i++) {
+  for (let i = 0; i < 260; i++) {
     const x = rng() * (WORLD.width + 400) - 200;
     const below = rng() > 0.5;
     const band = below ? [bot + 40, WORLD.height + 380] : [-380, top - 40];
@@ -318,23 +325,23 @@ function buildDeco() {
 
   // Faint mossy "clearings" (open circles) to break up the field.
   CLEARINGS = [];
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 48; i++) {
     let x = 0, y = 0;
     for (let tries = 0; tries < 10; tries++) {
       x = 700 + rng() * (WORLD.width - 1400);
       y = top + 120 + rng() * (bot - top - 240);
-      if (!onRoad(y)) break;
+      if (!onRoad(x, y)) break;
     }
     CLEARINGS.push({ x, y, r: 120 + rng() * 130 });
   }
 
   CANDLES = [];
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < 54; i++) {
     let x = 0, y = 0;
     for (let tries = 0; tries < 10; tries++) {
       x = 500 + rng() * (WORLD.width - 1000);
       y = top + 80 + rng() * (bot - top - 160);
-      if (!onRoad(y) && !inBaseZone(x)) break;
+      if (!onRoad(x, y) && !inBaseZone(x, y)) break;
     }
     CANDLES.push({ x, y });
   }
@@ -393,35 +400,47 @@ export function drawWorld(ctx: CanvasRenderingContext2D, time: number) {
     ctx.beginPath(); ctx.arc(cl.x, cl.y, cl.r, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Central minion road: a narrow dirt ribbon down the middle of the map.
-  const roadTop = LANE_Y - ROAD_HALF;
-  const roadBot = LANE_Y + ROAD_HALF;
-  // Grassy shoulder underneath.
-  ctx.fillStyle = "rgba(20,50,28,0.9)";
-  ctx.fillRect(-M, roadTop - 18, WORLD.width + M * 2, ROAD_HALF * 2 + 36);
-  const road = ctx.createLinearGradient(0, roadTop, 0, roadBot);
-  road.addColorStop(0, "#6e5230");
-  road.addColorStop(0.5, "#8a6a3e");
-  road.addColorStop(1, "#6e5230");
-  ctx.fillStyle = road;
-  ctx.fillRect(-M, roadTop, WORLD.width + M * 2, ROAD_HALF * 2);
-  // Road speckle.
-  for (let x = 0; x < WORLD.width; x += 70) {
-    for (let y = roadTop + 18; y < roadBot; y += 54) {
-      const r = ((x * 13 + y * 7) % 17) / 17;
-      ctx.fillStyle = r > 0.5 ? "rgba(0,0,0,0.06)" : "rgba(255,235,200,0.05)";
+  // Three minion roads: top, mid and bot, drawn as thick dirt ribbons that
+  // follow the actual lane paths the minions walk.
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const tracePath = (lane: (typeof LANES)[number]) => {
+    const path = LANE_PATHS[lane];
+    ctx.beginPath();
+    ctx.moveTo(path[0].x, path[0].y);
+    for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+  };
+  // Grassy shoulder underneath each road.
+  ctx.strokeStyle = "rgba(20,50,28,0.9)";
+  ctx.lineWidth = ROAD_HALF * 2 + 40;
+  for (const lane of LANES) { tracePath(lane); ctx.stroke(); }
+  // The dirt itself.
+  ctx.strokeStyle = "#7d6038";
+  ctx.lineWidth = ROAD_HALF * 2;
+  for (const lane of LANES) { tracePath(lane); ctx.stroke(); }
+  // Lighter core so the road reads as lit down the middle.
+  ctx.strokeStyle = "rgba(158, 122, 72, 0.75)";
+  ctx.lineWidth = ROAD_HALF;
+  for (const lane of LANES) { tracePath(lane); ctx.stroke(); }
+  // Grass edging.
+  ctx.strokeStyle = "rgba(40,90,50,0.75)";
+  ctx.lineWidth = 10;
+  for (const lane of LANES) {
+    const path = LANE_PATHS[lane];
+    for (const side of [1, -1]) {
       ctx.beginPath();
-      ctx.arc(x + (y % 120), y, 3 + r * 3, 0, Math.PI * 2);
-      ctx.fill();
+      for (let i = 0; i < path.length - 1; i++) {
+        const dx = path[i + 1].x - path[i].x, dy = path[i + 1].y - path[i].y;
+        const len = Math.hypot(dx, dy) || 1;
+        const ox = (-dy / len) * ROAD_HALF * side, oy = (dx / len) * ROAD_HALF * side;
+        if (i === 0) ctx.moveTo(path[i].x + ox, path[i].y + oy);
+        ctx.lineTo(path[i + 1].x + ox, path[i + 1].y + oy);
+      }
+      ctx.stroke();
     }
   }
-  // Road grass edges.
-  ctx.strokeStyle = "rgba(40,90,50,0.85)";
-  ctx.lineWidth = 8;
-  ctx.beginPath();
-  ctx.moveTo(-M, roadTop); ctx.lineTo(WORLD.width + M, roadTop);
-  ctx.moveTo(-M, roadBot); ctx.lineTo(WORLD.width + M, roadBot);
-  ctx.stroke();
+  ctx.restore();
 
   // Base platforms (team-tinted stone).
   drawBasePlatform(ctx, "blue");
@@ -486,37 +505,28 @@ export function drawWorld(ctx: CanvasRenderingContext2D, time: number) {
 function drawBasePlatform(ctx: CanvasRenderingContext2D, team: Team) {
   const s = STRUCTURES[team];
   const color = TEAM_COLOR[team];
-  const nx = s.nexus.x;
-  const fx = s.fountain.x;
-  const minX = Math.min(nx, fx) - 260;
-  const maxX = Math.max(nx, fx) + 260;
-  // Base area: a stepped hex-ish shape (narrow tail on the road side, wide
-  // flanks around the nexus) so the flanking turrets sit on team ground.
-  const top = LANE_Y - 320;
-  const bot = LANE_Y + 320;
+  const n = s.nexus;
+  // Each base is a corner keep: a big chamfered square tucked into its corner
+  // of the map, wide enough to hold the nexus, fountain and base turrets.
+  const R = 1250;              // reach from the nexus into the map
+  const cut = 520;             // chamfer facing the battlefield
+  const sign = team === "blue" ? 1 : -1;   // blue opens up-right, red down-left
+  const cx = n.x, cy = n.y;
+  const nearX = cx - sign * 620, nearY = cy + sign * 620;  // corner side
+  const farX = cx + sign * R, farY = cy - sign * R;        // map side
   ctx.save();
-  ctx.fillStyle = team === "blue" ? "rgba(40,80,140,0.16)" : "rgba(150,45,45,0.16)";
+  ctx.fillStyle = team === "blue" ? "rgba(40,80,140,0.18)" : "rgba(150,45,45,0.18)";
   ctx.beginPath();
-  if (team === "blue") {
-    ctx.moveTo(minX, top);
-    ctx.lineTo(maxX - 80, top);
-    ctx.lineTo(maxX, LANE_Y - 60);
-    ctx.lineTo(maxX, LANE_Y + 60);
-    ctx.lineTo(maxX - 80, bot);
-    ctx.lineTo(minX, bot);
-  } else {
-    ctx.moveTo(maxX, top);
-    ctx.lineTo(minX + 80, top);
-    ctx.lineTo(minX, LANE_Y - 60);
-    ctx.lineTo(minX, LANE_Y + 60);
-    ctx.lineTo(minX + 80, bot);
-    ctx.lineTo(maxX, bot);
-  }
+  ctx.moveTo(nearX, nearY);
+  ctx.lineTo(farX, nearY);
+  ctx.lineTo(farX, farY + sign * cut);
+  ctx.lineTo(farX - sign * cut, farY);
+  ctx.lineTo(nearX, farY);
   ctx.closePath();
   ctx.fill();
   ctx.strokeStyle = color;
   ctx.globalAlpha = 0.35;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 4;
   ctx.stroke();
   ctx.restore();
 }
@@ -731,10 +741,20 @@ export function drawMinimap(
   ctx.fillStyle = "rgba(28, 68, 38, 0.55)";
   ctx.fillRect(x0, y0, W, H);
 
-  // Lane road.
-  const roadTop = LANE_Y - ROAD_HALF;
-  ctx.fillStyle = "rgba(138, 106, 62, 0.85)";
-  ctx.fillRect(x0, y0 + roadTop * sy, W, (ROAD_HALF * 2) * sy);
+  // The three lane roads.
+  ctx.save();
+  ctx.strokeStyle = "rgba(138, 106, 62, 0.9)";
+  ctx.lineWidth = Math.max(2, ROAD_HALF * 2 * sx);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  for (const lane of LANES) {
+    const path = LANE_PATHS[lane];
+    ctx.beginPath();
+    ctx.moveTo(x0 + path[0].x * sx, y0 + path[0].y * sy);
+    for (let i = 1; i < path.length; i++) ctx.lineTo(x0 + path[i].x * sx, y0 + path[i].y * sy);
+    ctx.stroke();
+  }
+  ctx.restore();
 
   // Bushes.
   ctx.fillStyle = "rgba(50, 100, 55, 0.6)";
@@ -852,6 +872,7 @@ function drawZone(ctx: CanvasRenderingContext2D, z: ZoneSnap, time: number) {
 function drawNexus(ctx: CanvasRenderingContext2D, n: StructSnap, time: number) {
   if (!n.alive) return;
   const color = TEAM_COLOR[n.team];
+  if (n.prot) drawProtectionShield(ctx, n.x, n.y, 130, color);
   const bob = Math.sin(time * 1.5) * 8;
   // Ground shadow.
   ctx.fillStyle = "rgba(0,0,0,0.35)";
@@ -879,6 +900,22 @@ function drawNexus(ctx: CanvasRenderingContext2D, n: StructSnap, time: number) {
   drawStructBar(ctx, n, 78, "NEXUS");
 }
 
+// Structures still shielded by the towers in front of them get a dashed
+// barrier ring so it's obvious why they can't be damaged yet.
+function drawProtectionShield(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string) {
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.setLineDash([14, 12]);
+  ctx.beginPath(); ctx.arc(x, y - 10, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(x, y - 10, r, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 function team3(hex: string, amt: number): string {
   // Darken a hex color by amt (0..1).
   const n = parseInt(hex.slice(1), 16);
@@ -891,6 +928,7 @@ function team3(hex: string, amt: number): string {
 function drawTurret(ctx: CanvasRenderingContext2D, t: StructSnap) {
   if (!t.alive) return;
   const color = TEAM_COLOR[t.team];
+  if (t.prot) drawProtectionShield(ctx, t.x, t.y, 78, color);
   const h = 66; // tower height
   // Ground shadow.
   ctx.fillStyle = "rgba(0,0,0,0.35)";

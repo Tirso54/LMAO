@@ -113,9 +113,9 @@ export default function LandingPage() {
           <p className="eyebrow">Un solo campo, cero piedad</p>
           <h2 className="section-title">El Barranco del Alboroto</h2>
           <p className="section-sub">
-            Una calzada central de minions rodeada de hierba abierta para flanquear, campamentos
-            de jungla que pican, y una cadena de torretas que te protege hasta el corazón de la
-            base. Ganáis quien reviente el Nexo enemigo primero.
+            Un campo cuadrado enorme con tres calles — superior, media e inferior — que rodean
+            la jungla: doce torretas por bando, campamentos que pican, pozos de Barón y Draggón,
+            y hierba por todas partes para flanquear. Ganáis quien reviente el Nexo enemigo primero.
           </p>
           <div className="rule" />
         </div>
@@ -125,11 +125,11 @@ export default function LandingPage() {
             <span className="flag pill">El original</span>
             <div className="map-icon">🗺️</div>
             <h3>El Barranco del Alboroto</h3>
-            <div className="meta">1 calzada · jungla · 1–7 por equipo</div>
+            <div className="meta">3 calles · 24 torretas · jungla · 1–5 por equipo</div>
             <p>
               Empuja tu calle con las oleadas, escóndete en la hierba para tender emboscadas,
-              limpia los campamentos y derriba las tres torretas de cada base antes de partir el
-              Nexo en dos. Bots opcionales para rellenar los huecos: pueden ir despistados o con
+              limpia los campamentos y derriba torreta a torreta —exterior, interior e inhibidora—
+              hasta abrir la base y partir el Nexo en dos. Bots opcionales para rellenar los huecos: pueden ir despistados o con
               demasiada cafeína.
             </p>
             <div className="tags">

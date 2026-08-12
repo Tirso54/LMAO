@@ -192,8 +192,8 @@ function Menu({
     mode === "host" ? "host" : mode === "join" ? "join" : "solo"
   );
   // Room setup: how many bots on your team, how many enemy bots.
-  const [allyBots, setAllyBots] = useState(2);
-  const [enemyBots, setEnemyBots] = useState(3);
+  const [allyBots, setAllyBots] = useState(4);
+  const [enemyBots, setEnemyBots] = useState(5);
   const [minions, setMinions] = useState(true);
   const [difficulty, setDifficulty] = useState<GameConfig["difficulty"]>("normal");
   const valid = nm.trim().length >= 2;
@@ -256,7 +256,7 @@ function Menu({
                 <div className="lbl">Campo de batalla</div>
                 <div className="choice active" style={{ cursor: "default" }}>
                   <div className="ct">🗺️ El Barranco del Alboroto</div>
-                  <div className="cd">1 calzada, jungla, hierba para flanquear · 1–7 por equipo.</div>
+                  <div className="cd">3 calles (superior, media, inferior), 12 torretas por bando, jungla completa · 1–5 por equipo.</div>
                 </div>
               </div>
 
