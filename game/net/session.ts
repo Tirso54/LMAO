@@ -41,8 +41,8 @@ export interface GameSession {
 }
 
 const DEFAULT_CONFIG: GameConfig = {
-  teamSize: 3,
-  enemyBots: 3,
+  teamSize: 5,
+  enemyBots: 5,
   botFill: true,
   difficulty: "normal",
   minionsEnabled: true,

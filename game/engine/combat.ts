@@ -89,6 +89,41 @@ export interface DamageOpts {
 }
 
 // Core damage application. Returns actual damage dealt (post mitigation/shields).
+
+/**
+ * Siege ordering: a turret can only be damaged once every turret ahead of it
+ * in the same lane is down; base turrets unlock once any lane's inhibitor
+ * turret has fallen; the nexus unlocks once every base turret is down.
+ */
+export function structureVulnerable(state: GameState, target: Entity): boolean {
+  if (target.kind === "turret") {
+    const t = target as Turret;
+    if (t.lane) {
+      for (const id in state.turrets) {
+        const o = state.turrets[id];
+        if (o.alive && o.team === t.team && o.lane === t.lane && o.order > t.order) return false;
+      }
+      return true;
+    }
+    // Base turret: at least one lane must be cracked open all the way to the
+    // inhibitor turret before the keep itself can be attacked.
+    for (const id in state.turrets) {
+      const o = state.turrets[id];
+      if (o.team !== t.team || o.order !== 1) continue;
+      if (!o.alive) return true;
+    }
+    return false;
+  }
+  if (target.kind === "nexus") {
+    for (const id in state.turrets) {
+      const o = state.turrets[id];
+      if (o.alive && o.team === target.team && o.order === 0) return false;
+    }
+    return true;
+  }
+  return true;
+}
+
 export function dealDamage(
   state: GameState,
   sourceId: number | null,
@@ -104,6 +139,11 @@ export function dealDamage(
   if (isChampion(target)) {
     if (target.buffs.some((b) => b.kind === "invuln")) return 0;
   }
+
+  // Structures are shielded until the ones in front of them fall (outer ->
+  // inner -> inhibitor -> base turrets -> nexus), so all 12 towers per side
+  // actually have to be sieged down.
+  if (!structureVulnerable(state, target)) return 0;
 
   let amount = rawAmount * RESIST_MULT(resistFor(target, type));
 

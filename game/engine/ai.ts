@@ -1,7 +1,7 @@
 import { Champion, Entity, GameState, PlayerInput, CastCommand, Team } from "./types";
 import { CHAMPIONS } from "./champions";
 import { RECOMMENDED, ITEMS } from "./items";
-import { STRUCTURES, LANE_Y, WORLD } from "./constants";
+import { STRUCTURES, WORLD, LANES, LaneId, lanePathFor, pointAlong, progressAlong } from "./constants";
 import { add, angleTo, dist, fromAngle, norm, sub, scale, clamp } from "./math";
 import { applyInput, unspentPoints } from "./simulation";
 import { enemyTeam, isChampion, slowMultiplier } from "./combat";
@@ -96,18 +96,41 @@ function lastHittable(state: GameState, c: Champion): Entity | null {
   return killable || nearest;
 }
 
+/** Which lane this bot is assigned to (stable, spread across the team). */
+function botLane(state: GameState, c: Champion): LaneId {
+  const cached = c.passiveData.laneIdx;
+  if (cached != null) return LANES[cached];
+  // Count how many allies already claimed each lane and take the emptiest.
+  const counts: Record<LaneId, number> = { top: 0, mid: 0, bot: 0 };
+  for (const id in state.champions) {
+    const o = state.champions[id];
+    if (o.team !== c.team || o.id === c.id) continue;
+    const l = o.passiveData.laneIdx;
+    if (l != null) counts[LANES[l]]++;
+  }
+  let pick: LaneId = "mid";
+  let bestN = Infinity;
+  for (const l of LANES) {
+    if (counts[l] < bestN) { bestN = counts[l]; pick = l; }
+  }
+  c.passiveData.laneIdx = LANES.indexOf(pick);
+  return pick;
+}
+
+/** The furthest-forward point along the bot's lane its team has pushed to. */
 function frontier(state: GameState, c: Champion): { x: number; y: number } {
-  // The furthest-forward allied minion, otherwise a default lane push point.
-  const forward = c.team === "blue" ? 1 : -1;
-  let bestX = c.team === "blue" ? 500 : WORLD.width - 500;
+  const lane = botLane(state, c);
+  const path = lanePathFor(lane, c.team);
+  let best = 0.06; // default: just outside our own base
   let found = false;
   for (const id in state.minions) {
     const m = state.minions[id];
-    if (!m.alive || m.team !== c.team) continue;
-    if (forward > 0 ? m.pos.x > bestX : m.pos.x < bestX) { bestX = m.pos.x; found = true; }
+    if (!m.alive || m.team !== c.team || m.lane !== lane) continue;
+    const t = progressAlong(path, m.pos);
+    if (t > best) { best = t; found = true; }
   }
-  if (!found) bestX = c.team === "blue" ? 900 : WORLD.width - 900;
-  return { x: bestX, y: LANE_Y };
+  if (!found) best = 0.14;
+  return pointAlong(path, best);
 }
 
 function decideBot(state: GameState, c: Champion, diff: typeof DIFF.normal) {
@@ -192,11 +215,19 @@ function decideBot(state: GameState, c: Champion, diff: typeof DIFF.normal) {
   // enemy nexus; auto-acquire grabs minions & structures en route. During a
   // siege window, drive all the way into the base; otherwise stay with minions.
   const enemyNexus = c.team === "blue" ? STRUCTURES.red.nexus : STRUCTURES.blue.nexus;
+  if (siegeWindow) {
+    // Commit: walk straight into the enemy base and end it.
+    input.attackMove = { x: enemyNexus.x, y: enemyNexus.y };
+    applyInput(state, c.ownerId, input);
+    return;
+  }
+  // Push our own lane: advance a bit past the minion frontier when healthy.
+  const lane = botLane(state, c);
+  const path = lanePathFor(lane, c.team);
   const f = frontier(state, c);
-  const forward = c.team === "blue" ? 1 : -1;
-  const pushX = siegeWindow ? enemyNexus.x : (hpRatio > 0.6 ? f.x + forward * 400 : f.x);
-  const clampedPush = c.team === "blue" ? Math.min(pushX, enemyNexus.x) : Math.max(pushX, enemyNexus.x);
-  input.attackMove = { x: clampedPush, y: LANE_Y };
+  const ahead = hpRatio > 0.6 ? 0.05 : 0;
+  const push = pointAlong(path, Math.min(0.9, progressAlong(path, f) + ahead));
+  input.attackMove = { x: push.x, y: push.y };
   applyInput(state, c.ownerId, input);
 }
 

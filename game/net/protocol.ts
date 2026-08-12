@@ -71,6 +71,8 @@ export interface StructSnap {
   mhp: number;
   order?: number;
   alive: boolean;
+  // True while the structure is still shielded by the ones in front of it.
+  prot?: boolean;
 }
 export interface ProjSnap {
   id: number;
@@ -141,6 +143,7 @@ export interface LobbyState {
 import { CHAMPIONS } from "../engine/champions";
 import { XP_PER_LEVEL } from "../engine/constants";
 import { unspentPoints } from "../engine/simulation";
+import { structureVulnerable } from "../engine/combat";
 
 export function makeSnapshot(state: GameState): Snapshot {
   const champs: ChampSnap[] = [];
@@ -206,12 +209,12 @@ export function makeSnapshot(state: GameState): Snapshot {
   const turrets: StructSnap[] = [];
   for (const id in state.turrets) {
     const t = state.turrets[id];
-    turrets.push({ id: t.id, team: t.team, x: t.pos.x, y: t.pos.y, hp: Math.round(t.hp), mhp: t.maxHp, order: t.order, alive: t.alive });
+    turrets.push({ id: t.id, team: t.team, x: t.pos.x, y: t.pos.y, hp: Math.round(t.hp), mhp: t.maxHp, order: t.order, alive: t.alive, prot: !structureVulnerable(state, t) });
   }
   const nexuses: StructSnap[] = [];
   for (const id in state.nexuses) {
     const n = state.nexuses[id];
-    nexuses.push({ id: n.id, team: n.team, x: n.pos.x, y: n.pos.y, hp: Math.round(n.hp), mhp: n.maxHp, alive: n.alive });
+    nexuses.push({ id: n.id, team: n.team, x: n.pos.x, y: n.pos.y, hp: Math.round(n.hp), mhp: n.maxHp, alive: n.alive, prot: !structureVulnerable(state, n) });
   }
   const projectiles: ProjSnap[] = state.projectiles.map((p) => ({ id: p.id, team: p.team, x: Math.round(p.pos.x), y: Math.round(p.pos.y), k: p.kind, sp: p.spellId, r: p.radius }));
   const zones: ZoneSnap[] = state.zones.map((z) => ({ id: z.id, sp: z.spellId, team: z.team, x: Math.round(z.pos.x), y: Math.round(z.pos.y), r: z.radius, k: z.kind, t: +z.time.toFixed(1), fuse: z.fuse, angle: z.angle, length: z.length }));

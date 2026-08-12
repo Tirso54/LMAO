@@ -92,7 +92,7 @@ export default function Lobby({
         <div>
           <div className="cs-label">Selección de campeón</div>
           <div style={{ fontSize: 13, color: "var(--ink-2)" }}>
-            🗺️ El Barranco del Alboroto · 1–7 por equipo
+            🗺️ El Barranco del Alboroto · 3 calles · 1–5 por equipo
           </div>
         </div>
 

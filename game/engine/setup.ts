@@ -11,6 +11,7 @@ import {
 import {
   CHAMPION_RADIUS,
   JUNGLE_CAMPS,
+  LaneId,
   MONSTER_KINDS,
   MonsterKind,
   NEXUS,
@@ -95,7 +96,7 @@ export function createChampion(
   return champ;
 }
 
-function makeTurret(state: GameState, team: Team, x: number, y: number, order: number): Turret {
+function makeTurret(state: GameState, team: Team, x: number, y: number, order: number, lane: LaneId | null): Turret {
   const id = state.nextEntityId++;
   const t: Turret = {
     id,
@@ -107,6 +108,7 @@ function makeTurret(state: GameState, team: Team, x: number, y: number, order: n
     maxHp: TURRET.hp,
     radius: TURRET_RADIUS,
     alive: true,
+    lane,
     attackDamage: TURRET.ad,
     attackRange: TURRET.range,
     attackCooldown: 0,
@@ -205,7 +207,7 @@ export function createInitialState(config: GameConfig): GameState {
   // Structures.
   for (const team of ["blue", "red"] as Team[]) {
     const s = STRUCTURES[team];
-    for (const t of s.turrets) makeTurret(state, team, t.x, t.y, t.order);
+    for (const t of s.turrets) makeTurret(state, team, t.x, t.y, t.order, t.lane ?? null);
     makeNexus(state, team, s.nexus.x, s.nexus.y);
   }
 
