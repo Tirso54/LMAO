@@ -84,24 +84,45 @@ export default function LandingPage() {
           Sin descargas · Sin cuentas · Sin reembolsos (no hay nada que reembolsar)
         </div>
 
-        {/* Animated top-down preview of the arena */}
+        {/* Animated top-down preview of the arena — 3 lanes, corner bases */}
         <div className="arena-preview" aria-hidden="true">
           <div className="ap-field">
             <div className="ap-grid" />
+            {/* Lane roads */}
+            <div className="ap-road top-h" />
+            <div className="ap-road top-v" />
+            <div className="ap-road bot-h" />
+            <div className="ap-road bot-v" />
+            <div className="ap-road mid" />
+            {/* Corner bases */}
             <div className="ap-base blue">
               <span className="ap-nexus" />
             </div>
-            <div className="ap-road" />
             <div className="ap-base red">
               <span className="ap-nexus" />
             </div>
-            <span className="ap-bush" style={{ top: "18%", left: "34%" }} />
-            <span className="ap-bush" style={{ top: "70%", left: "44%" }} />
-            <span className="ap-bush" style={{ top: "30%", left: "62%" }} />
-            <span className="ap-bush" style={{ top: "62%", left: "24%" }} />
-            <span className="ap-bush" style={{ top: "24%", left: "50%" }} />
-            <span className="ap-champ blue" style={{ top: "48%", left: "30%" }} />
-            <span className="ap-champ red" style={{ top: "52%", left: "66%" }} />
+            {/* Turrets peppered along the lanes */}
+            <span className="ap-turret blue" style={{ top: "80%", left: "8%" }} />
+            <span className="ap-turret blue" style={{ top: "65%", left: "8%" }} />
+            <span className="ap-turret blue" style={{ top: "40%", left: "8%" }} />
+            <span className="ap-turret blue" style={{ bottom: "8%", right: "35%" }} />
+            <span className="ap-turret blue" style={{ bottom: "8%", right: "60%" }} />
+            <span className="ap-turret blue" style={{ bottom: "8%", right: "80%" }} />
+            <span className="ap-turret red" style={{ top: "8%", left: "35%" }} />
+            <span className="ap-turret red" style={{ top: "8%", left: "60%" }} />
+            <span className="ap-turret red" style={{ top: "8%", left: "80%" }} />
+            <span className="ap-turret red" style={{ top: "20%", right: "8%" }} />
+            <span className="ap-turret red" style={{ top: "40%", right: "8%" }} />
+            <span className="ap-turret red" style={{ top: "60%", right: "8%" }} />
+            {/* Jungle bushes */}
+            <span className="ap-bush" style={{ top: "26%", left: "26%" }} />
+            <span className="ap-bush" style={{ top: "40%", left: "36%" }} />
+            <span className="ap-bush" style={{ top: "60%", left: "62%" }} />
+            <span className="ap-bush" style={{ top: "72%", left: "72%" }} />
+            <span className="ap-bush" style={{ top: "20%", left: "60%" }} />
+            <span className="ap-bush" style={{ top: "78%", left: "34%" }} />
+            {/* Champions */}
+            <span className="ap-champ blue" style={{ top: "58%", left: "40%" }} />
             <span className="ap-champ red" style={{ top: "38%", left: "58%" }} />
           </div>
         </div>

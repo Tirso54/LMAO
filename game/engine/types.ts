@@ -367,6 +367,9 @@ export interface PlayerInput {
   levelUp?: number | null;
   // Cosmetic ping.
   ping?: { x: number; y: number; kind: string } | null;
+  // Free-aim energy-ball shot: fires in the direction of {x,y} whether or not
+  // there's an enemy under the cursor (basic-attack range/speed/damage).
+  shoot?: { x: number; y: number } | null;
 }
 
 export interface CastCommand {

@@ -78,7 +78,9 @@ export default function GamePlay({
         }
       }
 
-      // Attack joystick (right side): attack the nearest enemy in the aimed direction.
+      // Attack joystick (right side): attack the nearest enemy in the aimed
+      // direction. When nothing lines up, fire an energy ball in that
+      // direction anyway so the player always sees a shot go out.
       const atk = attackJoyRef.current;
       if (atk.active && (atk.dx !== 0 || atk.dy !== 0)) {
         const snap = latestSnap();
@@ -91,6 +93,7 @@ export default function GamePlay({
           } else {
             p.attackMove = { x: me.x + Math.cos(angle) * 260, y: me.y + Math.sin(angle) * 260 };
             p.attackTarget = null;
+            p.shoot = { x: me.x + Math.cos(angle) * 900, y: me.y + Math.sin(angle) * 900 };
           }
         }
       }
@@ -116,7 +119,7 @@ export default function GamePlay({
       }
 
       const hasContent =
-        p.move || p.attackMove || p.attackTarget != null || p.stop || p.recall || p.levelUp != null || (p.casts && p.casts.length) || (p.buy && p.buy.length) || (p.sell && p.sell.length) || p.ping;
+        p.move || p.attackMove || p.attackTarget != null || p.stop || p.recall || p.levelUp != null || (p.casts && p.casts.length) || (p.buy && p.buy.length) || (p.sell && p.sell.length) || p.ping || p.shoot;
       if (hasContent) {
         p.seq = ++seqRef.current;
         session.sendInput(p);
@@ -216,10 +219,13 @@ export default function GamePlay({
 
     const onDown = (e: MouseEvent) => {
       if (e.button === 0) {
-        // left-click: ping (Alt) — otherwise no-op (quickcast handles casting)
+        // left-click: ping with Alt, otherwise fire a free-aim energy ball
+        // toward the cursor. Always shoots even with no enemy nearby.
+        const w = screenToWorld(mouseRef.current.sx, mouseRef.current.sy);
         if (e.altKey) {
-          const w = screenToWorld(mouseRef.current.sx, mouseRef.current.sy);
           pendingRef.current.ping = { x: w.x, y: w.y, kind: "here" };
+        } else if (!e.shiftKey && !e.ctrlKey) {
+          pendingRef.current.shoot = { x: w.x, y: w.y };
         }
       }
     };
@@ -257,8 +263,21 @@ export default function GamePlay({
         castSlot(slot, e.ctrlKey || e.shiftKey);
         e.preventDefault();
       } else if (k === "a") {
+        // Attack-move to cursor. If nothing is under/near the cursor, also
+        // fire a free-aim energy ball in that direction so the "attack" key
+        // always produces a visible shot.
         const w = screenToWorld(mouseRef.current.sx, mouseRef.current.sy);
         pendingRef.current.attackMove = { x: w.x, y: w.y };
+        const snap = latestSnap();
+        const me = findLocalChamp(snap);
+        if (me) {
+          const enemy = nearestEnemyToCursor(w.x, w.y, me.team, 220);
+          if (enemy == null) pendingRef.current.shoot = { x: w.x, y: w.y };
+        }
+      } else if (k === "f") {
+        // Dedicated free-aim shot: always fires an energy ball toward cursor.
+        const w = screenToWorld(mouseRef.current.sx, mouseRef.current.sy);
+        pendingRef.current.shoot = { x: w.x, y: w.y };
       } else if (k === "s") {
         pendingRef.current.stop = true;
       } else if (k === "b") {
